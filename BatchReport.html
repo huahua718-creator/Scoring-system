@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <title>區間個人成績報表</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      .student-card { page-break-after: always; margin: 0 !important; padding: 10px !important; border: none !important; box-shadow: none !important; }
+      .chart-box { height: 180px !important; } /* 列印時縮小圖表高度，確保不跨頁擠壓 */
+    }
+    body { font-family: "Microsoft JhengHei", Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+    .no-print-bar { background: #fff; padding: 12px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+    .btn-print { background-color: #27ae60; color: white; border: none; padding: 8px 18px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .btn-print:hover { background-color: #219150; }
+    .student-card { background: white; padding: 25px; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; }
+    .title { font-size: 20px; font-weight: bold; color: #2c3e50; }
+    .student-info { font-size: 16px; color: #555; }
+    .summary-box { display: flex; gap: 15px; margin-bottom: 15px; }
+    .badge { flex: 1; background: #ebf5fb; padding: 10px; border-radius: 6px; text-align: center; border-left: 4px solid #3498db; }
+    .badge-title { font-size: 12px; color: #7f8c8d; margin-bottom: 4px; }
+    .badge-value { font-size: 22px; font-weight: bold; color: #2c3e50; }
+    
+    /* 四圖表 2x2 矩陣佈局 */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .chart-box { height: 210px; background: #fafafa; padding: 8px; border-radius: 6px; border: 1px solid #eee; position: relative; box-sizing: border-box; }
+    .chart-title { font-size: 12px; font-weight: bold; color: #34495e; text-align: center; margin-bottom: 4px; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    th, td { border: 1px solid #e0e0e0; padding: 8px 6px; text-align: center; }
+    th { background-color: #f2f4f4; color: #34495e; font-weight: bold; }
+    .section-label { font-size: 14px; font-weight: bold; color: #2c3e50; margin-top: 15px; margin-bottom: 6px; border-left: 3px solid #3498db; padding-left: 6px; }
+  </style>
+</head>
+<body>
+
+  <div class="no-print-bar no-print">
+    <span style="font-weight:bold; font-size:16px;">📄 學生個人區間成績報表</span>
+    <button class="btn-print" onclick="window.print()">🖨️ 列印 / 儲存為 PDF</button>
+  </div>
+
+  <div id="reportContainer"></div>
+
+  <script>
+    const reportData = <?!= reportData ?>;
+
+    // 5標相對刻度格式化
+    const fiveTierTicks = {
+      stepSize: 1,
+      callback: function(value) {
+        const labels = ['底標下', '底標', '後標', '均標', '前標', '頂標', '滿分'];
+        return labels[value] !== undefined ? labels[value] : value;
+      }
+    };
+
+    function renderReports() {
+      const container = document.getElementById('reportContainer');
+      if (!reportData || !reportData.reports || reportData.reports.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:50px; font-size:18px;">⚠️ 選擇的區間內無成績資料！</div>';
+        return;
+      }
+
+      reportData.reports.forEach((rpt, idx) => {
+        const card = document.createElement('div');
+        card.className = 'student-card';
+
+        let tableRowsHtml = '';
+        const subjLabels = [];
+        const subjAvgs = [];
+
+        if (rpt.subjectDetails && rpt.subjectDetails.length > 0) {
+          rpt.subjectDetails.forEach(sd => {
+            subjLabels.push(sd.subject);
+            subjAvgs.push(sd.subjectAvg);
+
+            const exams = sd.exams || [];
+            const rowSpan = exams.length > 0 ? exams.length : 1;
+
+            if (exams.length === 0) {
+              tableRowsHtml += `
+                <tr>
+                  <td style="vertical-align:middle; font-weight:bold; background-color:#fafafa;">${sd.subject}</td>
+                  <td>-</td>
+                  <td>-</td>
+                  <td>-</td>
+                  <td style="vertical-align:middle; font-weight:bold; background-color:#fafafa;">${sd.subjectAvg}</td>
+                  <td style="vertical-align:middle; font-weight:bold; background-color:#fafafa;">${sd.subjectRank}</td>
+                </tr>
+              `;
+            } else {
+              tableRowsHtml += `
+                <tr>
+                  <td rowspan="${rowSpan}" style="vertical-align:middle; font-weight:bold; background-color:#fafafa;">${sd.subject}</td>
+                  <td>${exams[0].range || '-'}</td>
+                  <td><strong>${exams[0].score}</strong></td>
+                  <td>${exams[0].classAvg}</td>
+                  <td rowspan="${rowSpan}" style="vertical-align:middle; font-weight:bold; background-color:#fafafa;">${sd.subjectAvg}</td>
+                  <td rowspan="${rowSpan}" style="vertical-align:middle; font-weight:bold; background-color:#fafafa;">${sd.subjectRank}</td>
+                </tr>
+              `;
+              for (let eIdx = 1; eIdx < exams.length; eIdx++) {
+                tableRowsHtml += `
+                  <tr>
+                    <td>${exams[eIdx].range || '-'}</td>
+                    <td><strong>${exams[eIdx].score}</strong></td>
+                    <td>${exams[eIdx].classAvg}</td>
+                  </tr>
+                `;
+              }
+            }
+          });
+        } else {
+          tableRowsHtml = '<tr><td colspan="6">選取區間內無成績紀錄</td></tr>';
+        }
+
+        card.innerHTML = `
+          <div class="header">
+            <div class="title">個人成績學業報表</div>
+            <div class="student-info">
+              座號：<strong>${rpt.info.seat}</strong> | 姓名：<strong>${rpt.info.name}</strong>
+              <span style="margin-left:10px; font-size:12px; color:#7f8c8d;">(${reportData.startDate} ~ ${reportData.endDate})</span>
+            </div>
+          </div>
+
+          <div class="summary-box">
+            <div class="badge">
+              <div class="badge-title">區間加權平均</div>
+              <div class="badge-value">${rpt.summary.weightedAvg}</div>
+            </div>
+            <div class="badge">
+              <div class="badge-title">區間總排名</div>
+              <div class="badge-value">${rpt.summary.rank}</div>
+            </div>
+          </div>
+
+          <!-- 四圖表 2x2 矩陣區塊 -->
+          <div class="charts-grid">
+            <div class="chart-box">
+              <div class="chart-title">📊 各科平均雷達圖 (100分制)</div>
+              <canvas id="radar-${idx}"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-title">📈 區間週成績趨勢圖 (100分制)</div>
+              <canvas id="trend-${idx}"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-title">🎯 五標相對能力雷達 (0-6階梯)</div>
+              <canvas id="fiveTierRadar-${idx}"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-title">📉 五標相對週走勢 (0-6階梯)</div>
+              <canvas id="fiveTierTrend-${idx}"></canvas>
+            </div>
+          </div>
+
+          <div class="section-label">📝 成績明細表</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:15%;">科目</th>
+                <th style="width:25%;">範圍</th>
+                <th style="width:15%;">個人成績</th>
+                <th style="width:15%;">該次班平均</th>
+                <th style="width:15%;">科目平均</th>
+                <th style="width:15%;">科目排名</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRowsHtml}
+            </tbody>
+          </table>
+        `;
+
+        container.appendChild(card);
+
+        // 渲染 Chart.js 4 大圖表
+        setTimeout(() => {
+          // 1. 原始分數雷達圖
+          const ctxRadar = document.getElementById(`radar-${idx}`);
+          if (ctxRadar && subjLabels.length > 0) {
+            let rLabels = [...subjLabels];
+            let rData = [...subjAvgs];
+            if (rLabels.length === 2) { rLabels.push(''); rData.push(0); }
+
+            new Chart(ctxRadar, {
+              type: 'radar',
+              data: {
+                labels: rLabels,
+                datasets: [{
+                  label: '科目平均',
+                  data: rData,
+                  backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                  borderColor: '#3498db',
+                  pointBackgroundColor: '#3498db'
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { r: { min: 0, max: 100 } },
+                plugins: { legend: { display: false } }
+              }
+            });
+          }
+
+          // 2. 原始分數趨勢圖
+          const ctxTrend = document.getElementById(`trend-${idx}`);
+          if (ctxTrend && rpt.weeklyChart) {
+            new Chart(ctxTrend, {
+              type: 'line',
+              data: rpt.weeklyChart,
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { min: 0, max: 100 } },
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } }
+              }
+            });
+          }
+
+          // 3. 五標相對雷達圖 (0-6)
+          const ctxFiveTierRadar = document.getElementById(`fiveTierRadar-${idx}`);
+          if (ctxFiveTierRadar && rpt.fiveTierRadarChart) {
+            let ftRLabels = [...(rpt.fiveTierRadarChart.labels || [])];
+            let ftRData = [...(rpt.fiveTierRadarChart.studentData || [])];
+            let ftRBench = [...(rpt.fiveTierRadarChart.benchmarkData || [])];
+            if (ftRLabels.length === 2) { ftRLabels.push(''); ftRData.push(0); ftRBench.push(3); }
+
+            new Chart(ctxFiveTierRadar, {
+              type: 'radar',
+              data: {
+                labels: ftRLabels,
+                datasets: [
+                  {
+                    label: '個人落點',
+                    data: ftRData,
+                    backgroundColor: 'rgba(230, 126, 34, 0.25)',
+                    borderColor: '#e67e22',
+                    pointBackgroundColor: '#e67e22'
+                  },
+                  {
+                    label: '均標基準',
+                    data: ftRBench,
+                    borderColor: '#95a5a6',
+                    borderDash: [4, 4],
+                    fill: false,
+                    pointRadius: 0
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { r: { min: 0, max: 6, ticks: fiveTierTicks } },
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } }
+              }
+            });
+          }
+
+          // 4. 五標相對趨勢圖 (0-6)
+          const ctxFiveTierTrend = document.getElementById(`fiveTierTrend-${idx}`);
+          if (ctxFiveTierTrend && rpt.fiveTierTrendChart) {
+            new Chart(ctxFiveTierTrend, {
+              type: 'line',
+              data: rpt.fiveTierTrendChart,
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { min: 0, max: 6, ticks: fiveTierTicks } },
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } }
+              }
+            });
+          }
+
+        }, 50);
+      });
+    }
+
+    window.onload = renderReports;
+  </script>
+</body>
+</html>

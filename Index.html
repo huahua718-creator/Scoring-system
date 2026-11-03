@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>學生成績查詢系統</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { 
+      font-family: "Microsoft JhengHei", Arial, sans-serif; 
+      background: #f4f6f9; 
+      margin: 0; 
+      padding: 20px; 
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      transition: background-image 0.5s ease-in-out;
+    }
+    .card { 
+      max-width: 950px; 
+      margin: 0 auto 20px auto; 
+      background: rgba(255, 255, 255, 0.88) !important; 
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 25px; 
+      border-radius: 12px; 
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15); 
+    }
+    .logo-container {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .site-logo {
+      max-height: 80px; 
+      max-width: 100%;
+      object-fit: contain;
+      display: none; 
+    }
+    #loginCard {
+      display: none;
+    }
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #f4f6f9;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+    .spinner {
+      width: 45px;
+      height: 45px;
+      border: 4px solid #cbd5e1;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .fade-in {
+      animation: fadeIn 0.6s ease-in-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h2, h3 { color: #2c3e50; text-align: center; }
+    .summary-header { background: #ebf5fb; border: 1px solid #3498db; padding: 15px; border-radius: 6px; text-align: center; font-size: 18px; margin-bottom: 20px; }
+    .summary-header b { color: #e74c3c; font-size: 22px; }
+    
+    /* 四圖表 2x2 響應式網格 */
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .chart-box { background: #fff; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; }
+    
+    table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    table.data-table th, table.data-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: center; vertical-align: middle; font-size: 14px; }
+    table.data-table th { background: #1e293b; color: white; }
+    .form-group { margin-bottom: 12px; }
+    input, button { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
+    button { background: #3498db; color: white; font-weight: bold; cursor: pointer; border: none; }
+    button:disabled, input:disabled { background-color: #e2e8f0; cursor: not-allowed; color: #94a3b8; }
+    
+    .msg-box { margin-top: 15px; padding: 10px; border-radius: 6px; font-size: 14px; text-align: center; font-weight: bold; }
+    .msg-info { background: #e0f2fe; color: #0369a1; }
+    .msg-success { background: #dcfce7; color: #15803d; }
+    .msg-warning { background: #fef9c3; color: #a16207; }
+    .msg-error { background: #fee2e2; color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <!-- 載入中遮罩 -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <p style="margin-top: 15px; color: #475569; font-weight: bold; font-size: 15px;">畫面載入中，請稍候...</p>
+  </div>
+
+  <div id="loginCard" class="card">
+    <div class="logo-container">
+      <img class="site-logo" alt="校徽LOGO">
+    </div>
+    <h2 id="pageMainTitle">🎓 學生成績查詢</h2>
+    <div class="form-group"><input type="number" id="seat" placeholder="請輸入座號"></div>
+    <div class="form-group"><input type="password" id="password" placeholder="請輸入密碼"></div>
+    <button id="loginBtn" onclick="login()">登入查詢</button>
+    <div id="msgBox" class="msg-box" style="display:none;"></div>
+  </div>
+
+  <div id="reportCard" class="card" style="display:none;">
+    <div class="logo-container">
+      <img class="site-logo" alt="校徽LOGO">
+    </div>
+    <h2 id="welcomeTitle"></h2>
+
+    <!-- 1. 最上方：週加權總平均與週加權名次 -->
+    <div class="summary-header">
+      週加權總平均：<b id="txtWeeklyWeightedAvg">-</b> 分
+      <span style="margin:0 20px;">|</span>
+      週加權總排名：第 <b id="txtWeeklyRank">-</b> 名
+    </div>
+
+    <!-- 2. 中間：週成績詳細明細表 -->
+    <h3>📝 本週成績明細清單（近 7 日）</h3>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>科目</th>
+          <th>測驗範圍 / 細項</th>
+          <th>個人成績</th>
+          <th>該次班平均</th>
+          <th>週科目平均</th>
+          <th>週科目排名</th>
+        </tr>
+      </thead>
+      <tbody id="scoreTbody"></tbody>
+    </table>
+
+    <!-- 3. 最下方：全歷史學習能力分析圖表 (4 區塊 2x2 矩陣) -->
+    <h3 style="margin-top:35px;">📊 全歷史學習能力分析圖表</h3>
+    <div class="charts-grid">
+      <!-- 圖 1: 原始分數雷達圖 -->
+      <div class="chart-box">
+        <h4 style="margin:0 0 10px 0; text-align:center; color:#334155;">1. 各科歷史平均分數 (100分制)</h4>
+        <div style="position: relative; height: 260px;">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 圖 2: 原始分數趨勢圖 -->
+      <div class="chart-box">
+        <h4 style="margin:0 0 10px 0; text-align:center; color:#334155;">2. 全歷史週成績趨勢 (100分制)</h4>
+        <div style="position: relative; height: 260px;">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 圖 3: 五標相對雷達圖 -->
+      <div class="chart-box">
+        <h4 style="margin:0 0 10px 0; text-align:center; color:#334155;">3. 五標相對能力雷達 (0-6 階梯)</h4>
+        <div style="position: relative; height: 260px;">
+          <canvas id="fiveTierRadarChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 圖 4: 五標相對趨勢圖 -->
+      <div class="chart-box">
+        <h4 style="margin:0 0 10px 0; text-align:center; color:#334155;">4. 五標相對每週走勢 (0-6 階梯)</h4>
+        <div style="position: relative; height: 260px;">
+          <canvas id="fiveTierTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="location.reload()" style="background:#64748b; margin-top:20px;">登出 / 重新查詢</button>
+  </div>
+
+  <script>
+    let chartRadar = null, chartTrend = null, chartFiveTierRadar = null, chartFiveTierTrend = null;
+
+    // 鎖定機制設定
+    const MAX_ATTEMPTS = 3;                  // 允許最大失敗次數
+    const LOCKOUT_DURATION = 5 * 60 * 1000;  // 鎖定時間：5 分鐘 (毫秒)
+    const KEY_ATTEMPTS = 'student_query_attempts';
+    const KEY_LOCKOUT_TIME = 'student_query_lockout_until';
+    let countdownInterval = null;
+
+    // 0-6 階梯五標軸度標籤格式化
+    const fiveTierTicks = {
+      stepSize: 1,
+      callback: function(value) {
+        const labels = ['底標下', '底標', '後標', '均標', '前標', '頂標', '滿分'];
+        return labels[value] !== undefined ? labels[value] : value;
+      }
+    };
+
+    // 頁面載入時自動處理驗證與主題
+    window.addEventListener('DOMContentLoaded', () => {
+      checkLockoutStatus();
+      loadThemeAssets();
+    });
+
+    /**
+     * 取得並套用背景圖、校徽與動態標題
+     */
+    function loadThemeAssets() {
+      google.script.run
+        .withSuccessHandler(assets => {
+          if (assets) {
+            if (assets.title) {
+              document.title = assets.title;
+              const mainTitle = document.getElementById('pageMainTitle');
+              if (mainTitle) {
+                mainTitle.innerText = `🎓 ${assets.title}`;
+              }
+            }
+            if (assets.bg) {
+              document.body.style.backgroundImage = `url('${assets.bg}')`;
+            }
+            if (assets.logo) {
+              const logoElements = document.querySelectorAll('.site-logo');
+              logoElements.forEach(img => {
+                img.src = assets.logo;
+                img.style.display = 'inline-block';
+              });
+            }
+          }
+          showLoginCard();
+        })
+        .withFailureHandler(err => {
+          console.error("載入主題資產失敗：", err);
+          showLoginCard();
+        })
+        .getPageThemeAssets();
+    }
+
+    /**
+     * 關閉載入遮罩並將登入卡片淡入顯現
+     */
+    function showLoginCard() {
+      const overlay = document.getElementById('loadingOverlay');
+      const loginCard = document.getElementById('loginCard');
+
+      if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 500);
+      }
+
+      if (loginCard) {
+        loginCard.style.display = 'block';
+        loginCard.classList.add('fade-in');
+      }
+    }
+
+    function checkLockoutStatus() {
+      const lockoutUntil = parseInt(localStorage.getItem(KEY_LOCKOUT_TIME) || '0', 10);
+      const now = Date.now();
+
+      if (lockoutUntil > now) {
+        startCountdown(lockoutUntil);
+        return true;
+      } else {
+        if (lockoutUntil > 0) {
+          localStorage.removeItem(KEY_LOCKOUT_TIME);
+          localStorage.setItem(KEY_ATTEMPTS, '0');
+        }
+        stopCountdown();
+        setFormDisabled(false);
+        return false;
+      }
+    }
+
+    function startCountdown(lockoutUntil) {
+      setFormDisabled(true);
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      const updateTimer = () => {
+        const now = Date.now();
+        const remainingMs = lockoutUntil - now;
+
+        if (remainingMs <= 0) {
+          clearInterval(countdownInterval);
+          localStorage.removeItem(KEY_LOCKOUT_TIME);
+          localStorage.setItem(KEY_ATTEMPTS, '0');
+          setFormDisabled(false);
+          showMessage('🔓 鎖定已解除，請重新輸入座號與密碼。', 'success');
+        } else {
+          const minutes = Math.floor(remainingMs / 60000);
+          const seconds = Math.floor((remainingMs % 60000) / 1000);
+          const secStr = seconds < 10 ? '0' + seconds : seconds;
+          showMessage(`🔒 密碼錯誤次數過多！請等待 ${minutes} 分 ${secStr} 秒後再試。`, 'error');
+        }
+      };
+
+      updateTimer();
+      countdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    function stopCountdown() {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+    }
+
+    function setFormDisabled(disabled) {
+      const seat = document.getElementById('seat');
+      const pwd = document.getElementById('password');
+      const loginBtn = document.getElementById('loginBtn');
+
+      if (seat) seat.disabled = disabled;
+      if (pwd) pwd.disabled = disabled;
+      if (loginBtn) loginBtn.disabled = disabled;
+    }
+
+    function showMessage(msg, type) {
+      const msgBox = document.getElementById('msgBox');
+      if (!msgBox) return;
+      if (!msg) {
+        msgBox.style.display = 'none';
+        return;
+      }
+      msgBox.style.display = 'block';
+      msgBox.innerHTML = msg;
+      msgBox.className = 'msg-box msg-' + type;
+    }
+
+    function recordFailedAttempt(customMsg) {
+      let attempts = parseInt(localStorage.getItem(KEY_ATTEMPTS) || '0', 10) + 1;
+      localStorage.setItem(KEY_ATTEMPTS, attempts.toString());
+
+      if (attempts >= MAX_ATTEMPTS) {
+        const lockoutUntil = Date.now() + LOCKOUT_DURATION;
+        localStorage.setItem(KEY_LOCKOUT_TIME, lockoutUntil.toString());
+        startCountdown(lockoutUntil);
+      } else {
+        const remaining = MAX_ATTEMPTS - attempts;
+        const errMsg = customMsg || '座號或密碼錯誤！';
+        showMessage(`❌ ${errMsg} 還剩下 ${remaining} 次嘗試機會。`, 'error');
+      }
+    }
+
+    function login() {
+      if (checkLockoutStatus()) return;
+
+      const seat = document.getElementById('seat').value.trim();
+      const pwd = document.getElementById('password').value.trim();
+
+      if (!seat || !pwd) {
+        showMessage('⚠️ 請輸入座號與密碼！', 'warning');
+        return;
+      }
+
+      showMessage('⏳ 正在驗證身分並載入成績...', 'info');
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) {
+            recordFailedAttempt(res.message);
+            return;
+          }
+
+          localStorage.removeItem(KEY_ATTEMPTS);
+          localStorage.removeItem(KEY_LOCKOUT_TIME);
+          showMessage('', '');
+
+          document.getElementById('loginCard').style.display = 'none';
+          document.getElementById('reportCard').style.display = 'block';
+          document.getElementById('welcomeTitle').innerText = `你好，${res.studentName} 同學！`;
+
+          document.getElementById('txtWeeklyWeightedAvg').innerText = res.weeklyWeightedAvg;
+          document.getElementById('txtWeeklyRank').innerText = res.weeklyRank;
+
+          // 1. 渲染本週成績細項表格
+          const tbody = document.getElementById('scoreTbody');
+          tbody.innerHTML = '';
+
+          Object.keys(res.subjectGrouped).forEach(subj => {
+            const group = res.subjectGrouped[subj];
+            const rowCount = group.items.length;
+
+            group.items.forEach((item, idx) => {
+              const tr = document.createElement('tr');
+
+              if (idx === 0) {
+                tr.innerHTML += `<td rowspan="${rowCount}" style="font-weight:bold; background:#f8fafc;">${subj}</td>`;
+              }
+
+              tr.innerHTML += `
+                <td>${item.range}</td>
+                <td><b>${item.score}</b></td>
+                <td>${item.classAvg}</td>
+              `;
+
+              if (idx === 0) {
+                tr.innerHTML += `
+                  <td rowspan="${rowCount}" style="font-weight:bold; background:#f1f5f9;">${group.subjAvg}</td>
+                  <td rowspan="${rowCount}" style="font-weight:bold; background:#f1f5f9;">第 ${group.subjRank} 名</td>
+                `;
+              }
+              tbody.appendChild(tr);
+            });
+          });
+
+          // 2. 渲染【原始 100 分制雷達圖】
+          if (chartRadar) chartRadar.destroy();
+          let rLabels = res.radarChart.labels ? [...res.radarChart.labels] : [];
+          let rData = res.radarChart.data ? [...res.radarChart.data] : [];
+          if (rLabels.length === 2) { rLabels.push(''); rData.push(0); }
+
+          chartRadar = new Chart(document.getElementById('radarChart'), {
+            type: 'radar',
+            data: {
+              labels: rLabels,
+              datasets: [{
+                label: '個人歷史平均',
+                data: rData,
+                backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                pointBackgroundColor: 'rgba(52, 152, 219, 1)'
+              }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100 } } }
+          });
+
+          // 3. 渲染【原始 100 分制趨勢圖】
+          if (chartTrend) chartTrend.destroy();
+          chartTrend = new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: { labels: res.trendChart.labels, datasets: res.trendChart.datasets },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+          });
+
+          // 4. 渲染【五標相對雷達圖 (0-6)】
+          if (chartFiveTierRadar) chartFiveTierRadar.destroy();
+          let ftRLabels = res.fiveTierRadarChart ? [...(res.fiveTierRadarChart.labels || [])] : [];
+          let ftRData = res.fiveTierRadarChart ? [...(res.fiveTierRadarChart.studentData || [])] : [];
+          let ftRBench = res.fiveTierRadarChart ? [...(res.fiveTierRadarChart.benchmarkData || [])] : [];
+          if (ftRLabels.length === 2) { ftRLabels.push(''); ftRData.push(0); ftRBench.push(3); }
+
+          chartFiveTierRadar = new Chart(document.getElementById('fiveTierRadarChart'), {
+            type: 'radar',
+            data: {
+              labels: ftRLabels,
+              datasets: [
+                {
+                  label: '個人能力落點',
+                  data: ftRData,
+                  backgroundColor: 'rgba(230, 126, 34, 0.25)',
+                  borderColor: 'rgba(230, 126, 34, 1)',
+                  pointBackgroundColor: 'rgba(230, 126, 34, 1)'
+                },
+                {
+                  label: '班級均標基準',
+                  data: ftRBench,
+                  borderColor: 'rgba(149, 165, 166, 0.8)',
+                  borderDash: [5, 5],
+                  fill: false,
+                  pointRadius: 0
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: { r: { min: 0, max: 6, ticks: fiveTierTicks } }
+            }
+          });
+
+          // 5. 渲染【五標相對趨勢圖 (0-6)】
+          if (chartFiveTierTrend) chartFiveTierTrend.destroy();
+          chartFiveTierTrend = new Chart(document.getElementById('fiveTierTrendChart'), {
+            type: 'line',
+            data: { 
+              labels: res.fiveTierTrendChart ? res.fiveTierTrendChart.labels : [], 
+              datasets: res.fiveTierTrendChart ? res.fiveTierTrendChart.datasets : [] 
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: { y: { min: 0, max: 6, ticks: fiveTierTicks } }
+            }
+          });
+
+        })
+        .withFailureHandler(err => {
+          showMessage('❌ 系統連線錯誤：' + err.message, 'error');
+        })
+        .getStudentScores(seat, pwd);
+    }
+  </script>
+</body>
+</html>
