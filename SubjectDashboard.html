@@ -29,6 +29,7 @@
       padding: 0;
       background-color: #f1f5f9;
       color: var(--gray-800);
+      overflow-x: hidden;
     }
     header {
       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
@@ -40,6 +41,9 @@
       align-items: center;
       gap: 16px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
     .header-title {
       display: flex;
@@ -235,12 +239,60 @@
     .badge-info { background: #e0f2fe; color: #0369a1; }
     .badge-purple { background: #f3e8ff; color: #7e22ce; }
 
-    /* Charts Grid */
+    /* Chart Toolbar & Selector */
+    .chart-toolbar {
+      background: white;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .chart-controls-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .chart-seg-group {
+      display: flex;
+      background: #f1f5f9;
+      padding: 3px;
+      border-radius: 8px;
+      gap: 4px;
+    }
+    .chart-seg-btn {
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chart-seg-btn:hover { color: var(--primary); }
+    .chart-seg-btn.active {
+      background: white;
+      color: var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Charts Grid - 徹底解決無限垂直延伸的核心 CSS */
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
       gap: 20px;
-      margin-top: 20px;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+    }
+    .charts-grid.single-mode {
+      grid-template-columns: 1fr;
     }
     .chart-box {
       background: white;
@@ -248,13 +300,32 @@
       padding: 18px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.05);
       position: relative;
-      min-height: 340px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0; /* 防止子元素溢出 */
     }
     .chart-title {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
       color: #334155;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* 圖表容器固定高度，徹底鎖死高度防止 Chart.js resize loop 造成無限往下延伸 */
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      max-height: 380px;
+      overflow: hidden;
+    }
+    .charts-grid.single-mode .chart-wrapper {
+      height: 450px;
+      max-height: 450px;
     }
 
     /* Filters Bar */
@@ -392,6 +463,7 @@
     <div class="header-controls">
       <label for="groupSelect" style="font-size:13px; color:#cbd5e1; font-weight:600;">選擇分析群組：</label>
       <select id="groupSelect" onchange="onGroupChange()"></select>
+      <button class="btn btn-outline" id="btnFullscreen" onclick="toggleFullScreen()">🖥️ 全螢幕模式</button>
       <button class="btn btn-outline" onclick="loadGroupData()">🔄 重新整理</button>
       <button class="btn btn-primary" onclick="exportToSheet()">📑 產出試算表分頁</button>
     </div>
@@ -459,15 +531,44 @@
         </div>
       </div>
 
-      <!-- 圖表區 -->
-      <div class="charts-grid">
-        <div class="chart-box">
-          <div class="chart-title">📈 跨班歷次測驗走勢圖 (各班 vs 年段基準)</div>
-          <canvas id="multiLineChart"></canvas>
+      <!-- 圖表切換控制工具列 -->
+      <div class="chart-toolbar">
+        <div class="panel-title" style="margin:0;">
+          <span>📈 視覺化分析圖表</span>
+          <span style="font-size:12px; font-weight:normal; color:#64748b; margin-left:6px;">(可依需求選擇單一全寬或同時並排)</span>
         </div>
-        <div class="chart-box">
-          <div class="chart-title">📊 班級能力結構堆疊分佈圖 (五標梯隊佔比)</div>
-          <canvas id="stackedBarChart"></canvas>
+        <div class="chart-controls-group">
+          <label for="chartDisplaySelect" style="font-size:13px; color:#475569; font-weight:600;">圖表切換：</label>
+          <select id="chartDisplaySelect" onchange="onChartModeChange(this.value)">
+            <option value="both" selected>🔀 同時顯示兩者</option>
+            <option value="line">📈 僅顯示跨班走勢圖</option>
+            <option value="bar">📊 僅顯示能力結構堆疊圖</option>
+          </select>
+          <div class="chart-seg-group">
+            <button class="chart-seg-btn active" id="btnModeBoth" onclick="onChartModeChange('both')">🔀 同時顯示</button>
+            <button class="chart-seg-btn" id="btnModeLine" onclick="onChartModeChange('line')">📈 走勢圖</button>
+            <button class="chart-seg-btn" id="btnModeBar" onclick="onChartModeChange('bar')">📊 堆疊圖</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 圖表區：包覆 chart-wrapper 固定高度徹底防止無限垂直延伸 -->
+      <div class="charts-grid" id="macroChartsGrid">
+        <div class="chart-box" id="boxMultiLine">
+          <div class="chart-title">
+            <span>📈 跨班歷次測驗走勢圖 (各班 vs 年段基準)</span>
+          </div>
+          <div class="chart-wrapper" id="wrapperMultiLine">
+            <canvas id="multiLineChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-box" id="boxStackedBar">
+          <div class="chart-title">
+            <span>📊 班級能力結構堆疊分佈圖 (五標梯隊佔比)</span>
+          </div>
+          <div class="chart-wrapper" id="wrapperStackedBar">
+            <canvas id="stackedBarChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
@@ -548,15 +649,19 @@
           </div>
         </div>
 
-        <!-- 圖表與歷程時間軸 -->
+        <!-- 圖表與歷程時間軸 (同樣套用 chart-wrapper 防止延伸) -->
         <div class="charts-grid">
           <div class="chart-box">
             <div class="chart-title">📉 個人與年段/班級走勢對比 (判斷個人退步 vs 試題偏難)</div>
-            <canvas id="studentTrendChart"></canvas>
+            <div class="chart-wrapper">
+              <canvas id="studentTrendChart"></canvas>
+            </div>
           </div>
           <div class="chart-box">
             <div class="chart-title">🎯 評量類別/單元能力強弱雷達圖 (弱項標示)</div>
-            <canvas id="studentRadarChart"></canvas>
+            <div class="chart-wrapper">
+              <canvas id="studentRadarChart"></canvas>
+            </div>
           </div>
         </div>
 
@@ -579,6 +684,7 @@
     let chartStudentRadar = null;
     let currentFilterType = "ALL";
     let currentClassFilter = "ALL";
+    let currentChartMode = "both"; // 'both' | 'line' | 'bar'
 
     window.onload = function() {
       // 1. 初始化讀取所有同年段同科目群組
@@ -612,6 +718,93 @@
     }
     function hideLoading() {
       document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    /* 全螢幕切換功能 */
+    function toggleFullScreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().catch(err => alert("全螢幕切換受限: " + err.message));
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        } else if (docEl.msRequestFullscreen) {
+          docEl.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    }
+
+    function updateFullscreenBtn() {
+      const btn = document.getElementById('btnFullscreen');
+      if (!btn) return;
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+      if (isFull) {
+        btn.innerHTML = "🗗 結束全螢幕";
+        btn.style.background = "rgba(255,255,255,0.2)";
+        btn.style.borderColor = "white";
+      } else {
+        btn.innerHTML = "🖥️ 全螢幕模式";
+        btn.style.background = "transparent";
+        btn.style.borderColor = "rgba(255,255,255,0.3)";
+      }
+    }
+
+    document.addEventListener("fullscreenchange", updateFullscreenBtn);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenBtn);
+    document.addEventListener("msfullscreenchange", updateFullscreenBtn);
+
+    /* 圖表選單切換 (同時顯示 / 僅走勢圖 / 僅堆疊圖) */
+    function onChartModeChange(mode) {
+      currentChartMode = mode;
+      const sel = document.getElementById('chartDisplaySelect');
+      if (sel) sel.value = mode;
+
+      document.querySelectorAll('.chart-seg-btn').forEach(btn => btn.classList.remove('active'));
+      if (mode === 'both') {
+        const b = document.getElementById('btnModeBoth'); if (b) b.classList.add('active');
+      } else if (mode === 'line') {
+        const b = document.getElementById('btnModeLine'); if (b) b.classList.add('active');
+      } else if (mode === 'bar') {
+        const b = document.getElementById('btnModeBar'); if (b) b.classList.add('active');
+      }
+
+      const grid = document.getElementById('macroChartsGrid');
+      const boxLine = document.getElementById('boxMultiLine');
+      const boxBar = document.getElementById('boxStackedBar');
+      const wrapLine = document.getElementById('wrapperMultiLine');
+      const wrapBar = document.getElementById('wrapperStackedBar');
+
+      if (mode === 'both') {
+        grid.classList.remove('single-mode');
+        boxLine.style.display = 'flex';
+        boxBar.style.display = 'flex';
+        wrapLine.style.height = '380px';
+        wrapBar.style.height = '380px';
+      } else if (mode === 'line') {
+        grid.classList.add('single-mode');
+        boxLine.style.display = 'flex';
+        boxBar.style.display = 'none';
+        wrapLine.style.height = '460px';
+      } else if (mode === 'bar') {
+        grid.classList.add('single-mode');
+        boxLine.style.display = 'none';
+        boxBar.style.display = 'flex';
+        wrapBar.style.height = '460px';
+      }
+
+      // 觸發 Chart.js 平滑適應新容器尺寸
+      setTimeout(() => {
+        if (chartMultiLine) chartMultiLine.resize();
+        if (chartStackedBar) chartStackedBar.resize();
+      }, 60);
     }
 
     function onGroupChange() {
@@ -783,6 +976,9 @@
           }
         }
       });
+
+      // 套用當前的圖表顯示模式
+      onChartModeChange(currentChartMode);
     }
 
     function renderAlertsTable() {
@@ -857,6 +1053,14 @@
 
       event.target.classList.add('active');
       document.getElementById('tab-' + tabId).classList.add('active');
+
+      // 切換回 Tab 1 時確保圖表適應尺寸
+      if (tabId === 'macro') {
+        setTimeout(() => {
+          if (chartMultiLine) chartMultiLine.resize();
+          if (chartStackedBar) chartStackedBar.resize();
+        }, 50);
+      }
     }
 
     function populateStudentSelect() {
@@ -1056,4 +1260,3 @@
   </script>
 </body>
 </html>
-
