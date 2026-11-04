@@ -2,37 +2,218 @@
 <html>
 <head>
   <base target="_top">
+  <meta charset="utf-8">
   <style>
-    body { font-family: "Microsoft JhengHei", Arial, sans-serif; padding: 15px; background-color: #f8f9fa; color: #333; margin: 0; }
-    .section { background: white; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .section-title { font-size: 14px; font-weight: bold; color: #2c3e50; border-left: 4px solid #3498db; padding-left: 8px; margin-bottom: 12px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", Arial, sans-serif;
+      padding: 14px;
+      background-color: #f8fafc;
+      color: #334155;
+      margin: 0;
+    }
+    .section {
+      background: white;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      border-left: 4px solid #2563eb;
+      padding-left: 8px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-hint {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .loading {
+      text-align: center;
+      color: #94a3b8;
+      padding: 14px;
+      font-size: 13px;
+    }
     
-    .loading { text-align: center; color: #7f8c8d; padding: 12px; font-size: 13px; }
+    .weight-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      padding: 6px 8px;
+      background: #fdfdfd;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .weight-row:hover {
+      background: #f8fafc;
+    }
     
-    .weight-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 6px 10px; background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 4px; }
-    .weight-name { font-weight: bold; font-size: 13px; flex: 1; color: #2c3e50; }
-    .weight-input { width: 70px; padding: 5px; text-align: right; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
-    .btn-del { color: #e74c3c; cursor: pointer; font-weight: bold; margin-left: 10px; border: none; background: none; font-size: 16px; padding: 0 4px; border-radius: 3px; }
-    .btn-del:hover { color: #c0392b; background-color: #fadbd8; }
+    .sort-btn-group {
+      display: flex;
+      gap: 2px;
+    }
+    .btn-move {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      color: #475569;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 3px 6px;
+      line-height: 1;
+    }
+    .btn-move:hover:not(:disabled) {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+    .btn-move:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .weight-order-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      width: 18px;
+      text-align: center;
+    }
+    .weight-name {
+      font-weight: 700;
+      font-size: 13px;
+      flex: 1;
+      color: #1e293b;
+      margin-left: 4px;
+    }
+    .weight-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .weight-input-wrap label {
+      font-size: 11px;
+      color: #64748b;
+    }
+    .weight-input {
+      width: 60px;
+      padding: 5px;
+      text-align: right;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+    }
+    .weight-input:focus {
+      border-color: #2563eb;
+    }
+    .btn-del {
+      color: #ef4444;
+      cursor: pointer;
+      font-weight: bold;
+      border: none;
+      background: none;
+      font-size: 14px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .btn-del:hover {
+      background-color: #fee2e2;
+    }
     
-    .add-box { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd; }
-    .add-input-name { flex: 2; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
-    .add-input-val { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; text-align: right; }
-    .btn-add { background-color: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; white-space: nowrap; }
-    .btn-add:hover { background-color: #2980b9; }
+    .add-box {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #e2e8f0;
+    }
+    .add-input-name {
+      flex: 2;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+    }
+    .add-input-val {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: right;
+      outline: none;
+    }
+    .btn-add {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .btn-add:hover {
+      background-color: #1d4ed8;
+    }
     
-    .btn-save { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; cursor: pointer; border-radius: 6px; font-weight: bold; font-size: 14px; margin-top: 5px; }
-    .btn-save:hover { background-color: #219150; }
-    .container { max-height: 420px; overflow-y: auto; padding-right: 4px; }
-    .empty-msg { color: #95a5a6; font-size: 12px; text-align: center; padding: 10px 0; background: #fafafa; border: 1px dashed #e0e0e0; border-radius: 4px; }
+    .btn-save {
+      width: 100%;
+      padding: 12px;
+      background-color: #16a34a;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 14px;
+      margin-top: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .btn-save:hover {
+      background-color: #15803d;
+    }
+    .container {
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .empty-msg {
+      color: #94a3b8;
+      font-size: 12px;
+      text-align: center;
+      padding: 10px 0;
+      background: #f8fafc;
+      border: 1px dashed #e2e8f0;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- 導師系統加權設定 -->
+    <!-- 導師系統加權與科目排序設定 (上半部) -->
     <div class="section">
-      <div class="section-title">導師權重設定 (科目)</div>
-      <div id="tutorList"><div class="loading">⏳ 載入導師權重資料中...</div></div>
+      <div class="section-title">
+        <span>📊 導師加權設定與科目排序 (上半部)</span>
+      </div>
+      <div class="section-hint">
+        💡 點選 <b>▲ / ▼</b> 可上下移動科目排序，此順序將作為<b>區間成績單、總表與成績通知單</b>之科目欄位排列依據。
+      </div>
+      <div id="tutorList"><div class="loading">⏳ 載入導師科目資料中...</div></div>
       <div class="add-box">
         <input type="text" id="newTutorName" class="add-input-name" placeholder="新增科目 (如: 體育)">
         <input type="number" step="0.1" min="0" id="newTutorVal" class="add-input-val" placeholder="權重" value="1">
@@ -40,10 +221,15 @@
       </div>
     </div>
 
-    <!-- 專任系統加權設定 -->
+    <!-- 專任系統加權與類別排序設定 (下半部) -->
     <div class="section">
-      <div class="section-title">專任權重設定 (成績類別)</div>
-      <div id="subjectList"><div class="loading">⏳ 載入專任權重資料中...</div></div>
+      <div class="section-title" style="border-left-color: #16a34a;">
+        <span>🔀 科任加權設定與類別排序 (下半部)</span>
+      </div>
+      <div class="section-hint">
+        💡 點選 <b>▲ / ▼</b> 可調整評量類別順序，此順序將作為科任成績單與<b>「按評量類別排序欄位」</b>之先後依據。
+      </div>
+      <div id="subjectList"><div class="loading">⏳ 載入科任評量類別中...</div></div>
       <div class="add-box">
         <input type="text" id="newSubjName" class="add-input-name" placeholder="新增類別 (如: 出席)">
         <input type="number" step="0.1" min="0" id="newSubjVal" class="add-input-val" placeholder="權重" value="0.1">
@@ -52,18 +238,42 @@
     </div>
   </div>
 
-  <button class="btn-save" onclick="saveAll()">💾 儲存權重設定</button>
+  <button class="btn-save" onclick="saveAll()">💾 儲存權重與排序設定</button>
 
   <script>
+    // 儲存順序陣列與權重字典
+    let tutorOrder = [];
     let tutorWeights = {};
+    let subjectOrder = [];
     let subjectWeights = {};
 
-    // 對話框開啟時，自動向 Apps Script 端請求資料
     window.onload = function() {
       google.script.run
         .withSuccessHandler(data => {
           tutorWeights = data.tutor || {};
           subjectWeights = data.subject || {};
+
+          // 初始化順序
+          if (Array.isArray(data.tutorOrder) && data.tutorOrder.length > 0) {
+            tutorOrder = data.tutorOrder.slice();
+          } else {
+            tutorOrder = Object.keys(tutorWeights);
+          }
+          // 補齊遺漏科目
+          Object.keys(tutorWeights).forEach(k => {
+            if (!tutorOrder.includes(k)) tutorOrder.push(k);
+          });
+
+          if (Array.isArray(data.subjectOrder) && data.subjectOrder.length > 0) {
+            subjectOrder = data.subjectOrder.slice();
+          } else {
+            subjectOrder = Object.keys(subjectWeights);
+          }
+          // 補齊遺漏類別
+          Object.keys(subjectWeights).forEach(k => {
+            if (!subjectOrder.includes(k)) subjectOrder.push(k);
+          });
+
           render();
         })
         .withFailureHandler(err => {
@@ -73,73 +283,137 @@
     };
 
     function render() {
-      // 1. 渲染導師權重清單
+      // 1. 渲染導師科目清單 (依 tutorOrder 順序排列)
       const tDiv = document.getElementById('tutorList');
       tDiv.innerHTML = '';
-      const tKeys = Object.keys(tutorWeights);
-      if (tKeys.length === 0) {
-        tDiv.innerHTML = '<div class="empty-msg">目前無導師科目權重（可由下方新增）</div>';
+      if (tutorOrder.length === 0) {
+        tDiv.innerHTML = '<div class="empty-msg">目前無導師科目（可由下方新增）</div>';
       } else {
-        tKeys.forEach(k => {
+        tutorOrder.forEach((k, idx) => {
           const row = document.createElement('div');
           row.className = 'weight-row';
-          
+
+          // 上下移動按鈕組
+          const sortDiv = document.createElement('div');
+          sortDiv.className = 'sort-btn-group';
+
+          const btnUp = document.createElement('button');
+          btnUp.className = 'btn-move';
+          btnUp.innerHTML = '▲';
+          btnUp.title = '上移順序';
+          btnUp.disabled = (idx === 0);
+          btnUp.onclick = function() { moveItem(tutorOrder, idx, -1); };
+
+          const btnDown = document.createElement('button');
+          btnDown.className = 'btn-move';
+          btnDown.innerHTML = '▼';
+          btnDown.title = '下移順序';
+          btnDown.disabled = (idx === tutorOrder.length - 1);
+          btnDown.onclick = function() { moveItem(tutorOrder, idx, 1); };
+
+          sortDiv.appendChild(btnUp);
+          sortDiv.appendChild(btnDown);
+
+          const orderSpan = document.createElement('span');
+          orderSpan.className = 'weight-order-num';
+          orderSpan.textContent = `${idx + 1}.`;
+
           const nameSpan = document.createElement('span');
           nameSpan.className = 'weight-name';
           nameSpan.textContent = k;
-          
+
+          const inputWrap = document.createElement('div');
+          inputWrap.className = 'weight-input-wrap';
+          inputWrap.innerHTML = '<label>權重</label>';
+
           const valInput = document.createElement('input');
           valInput.type = 'number';
           valInput.step = '0.1';
           valInput.min = '0';
           valInput.className = 'weight-input tutor-val';
-          valInput.value = tutorWeights[k];
+          valInput.value = (tutorWeights[k] !== undefined) ? tutorWeights[k] : 1;
           valInput.setAttribute('data-key', k);
 
           const delBtn = document.createElement('button');
           delBtn.className = 'btn-del';
-          delBtn.title = '刪除此項目';
+          delBtn.title = '刪除此科目';
           delBtn.textContent = '✕';
           delBtn.onclick = function() { removeTutor(k); };
 
+          inputWrap.appendChild(valInput);
+
+          row.appendChild(sortDiv);
+          row.appendChild(orderSpan);
           row.appendChild(nameSpan);
-          row.appendChild(valInput);
+          row.appendChild(inputWrap);
           row.appendChild(delBtn);
           tDiv.appendChild(row);
         });
       }
 
-      // 2. 渲染專任權重清單
+      // 2. 渲染專任評量類別清單 (依 subjectOrder 順序排列)
       const sDiv = document.getElementById('subjectList');
       sDiv.innerHTML = '';
-      const sKeys = Object.keys(subjectWeights);
-      if (sKeys.length === 0) {
-        sDiv.innerHTML = '<div class="empty-msg">目前無專任類別權重（可由下方新增）</div>';
+      if (subjectOrder.length === 0) {
+        sDiv.innerHTML = '<div class="empty-msg">目前無專任類別（可由下方新增）</div>';
       } else {
-        sKeys.forEach(k => {
+        subjectOrder.forEach((k, idx) => {
           const row = document.createElement('div');
           row.className = 'weight-row';
-          
+
+          // 上下移動按鈕組
+          const sortDiv = document.createElement('div');
+          sortDiv.className = 'sort-btn-group';
+
+          const btnUp = document.createElement('button');
+          btnUp.className = 'btn-move';
+          btnUp.innerHTML = '▲';
+          btnUp.title = '上移順序';
+          btnUp.disabled = (idx === 0);
+          btnUp.onclick = function() { moveItem(subjectOrder, idx, -1); };
+
+          const btnDown = document.createElement('button');
+          btnDown.className = 'btn-move';
+          btnDown.innerHTML = '▼';
+          btnDown.title = '下移順序';
+          btnDown.disabled = (idx === subjectOrder.length - 1);
+          btnDown.onclick = function() { moveItem(subjectOrder, idx, 1); };
+
+          sortDiv.appendChild(btnUp);
+          sortDiv.appendChild(btnDown);
+
+          const orderSpan = document.createElement('span');
+          orderSpan.className = 'weight-order-num';
+          orderSpan.textContent = `${idx + 1}.`;
+
           const nameSpan = document.createElement('span');
           nameSpan.className = 'weight-name';
           nameSpan.textContent = k;
-          
+
+          const inputWrap = document.createElement('div');
+          inputWrap.className = 'weight-input-wrap';
+          inputWrap.innerHTML = '<label>權重</label>';
+
           const valInput = document.createElement('input');
           valInput.type = 'number';
           valInput.step = '0.1';
           valInput.min = '0';
           valInput.className = 'weight-input subj-val';
-          valInput.value = subjectWeights[k];
+          valInput.value = (subjectWeights[k] !== undefined) ? subjectWeights[k] : 0.1;
           valInput.setAttribute('data-key', k);
 
           const delBtn = document.createElement('button');
           delBtn.className = 'btn-del';
-          delBtn.title = '刪除此項目';
+          delBtn.title = '刪除此類別';
           delBtn.textContent = '✕';
           delBtn.onclick = function() { removeSubject(k); };
 
+          inputWrap.appendChild(valInput);
+
+          row.appendChild(sortDiv);
+          row.appendChild(orderSpan);
           row.appendChild(nameSpan);
-          row.appendChild(valInput);
+          row.appendChild(inputWrap);
           row.appendChild(delBtn);
           sDiv.appendChild(row);
         });
@@ -157,15 +431,27 @@
       });
     }
 
+    function moveItem(arr, index, direction) {
+      syncInputs();
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= arr.length) return;
+      const temp = arr[index];
+      arr[index] = arr[targetIndex];
+      arr[targetIndex] = temp;
+      render();
+    }
+
     function removeTutor(key) {
       syncInputs();
       delete tutorWeights[key];
+      tutorOrder = tutorOrder.filter(item => item !== key);
       render();
     }
 
     function removeSubject(key) {
       syncInputs();
       delete subjectWeights[key];
+      subjectOrder = subjectOrder.filter(item => item !== key);
       render();
     }
 
@@ -178,8 +464,10 @@
 
       if (!name) return alert('請輸入科目名稱！');
       if (isNaN(val) || val < 0) return alert('請輸入有效的權重數值！');
+      if (tutorOrder.includes(name)) return alert('該科目已存在於清單中！');
 
       tutorWeights[name] = val;
+      tutorOrder.push(name);
       nameInp.value = '';
       render();
     }
@@ -193,14 +481,20 @@
 
       if (!name) return alert('請輸入類別名稱！');
       if (isNaN(val) || val < 0) return alert('請輸入有效的權重數值！');
+      if (subjectOrder.includes(name)) return alert('該類別已存在於清單中！');
 
       subjectWeights[name] = val;
+      subjectOrder.push(name);
       nameInp.value = '';
       render();
     }
 
     function saveAll() {
       syncInputs();
+      const btn = document.querySelector('.btn-save');
+      btn.disabled = true;
+      btn.innerText = '⏳ 正在儲存設定...';
+
       google.script.run
         .withSuccessHandler(msg => {
           alert(msg);
@@ -208,8 +502,10 @@
         })
         .withFailureHandler(err => {
           alert('儲存失敗：' + err.message);
+          btn.disabled = false;
+          btn.innerText = '💾 儲存權重與排序設定';
         })
-        .saveAllCustomWeights(tutorWeights, subjectWeights);
+        .saveAllCustomWeights(tutorWeights, subjectWeights, tutorOrder, subjectOrder);
     }
   </script>
 </body>

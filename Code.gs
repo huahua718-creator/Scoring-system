@@ -1609,7 +1609,11 @@ function sortCurrentSheetColumnsByCategory() {
   if (numRows <= 0) return SpreadsheetApp.getUi().alert("無學生資料可排序！");
 
   const numCols = lastCol - 2;
-  const typeOrder = { "段考": 1, "小考": 2, "作業": 3, "筆記": 4 };
+  const customTypeOrder = getSubjectTypeOrder();
+  const typeOrder = {};
+  customTypeOrder.forEach((t, idx) => {
+    typeOrder[t] = idx + 1;
+  });
 
   const types = sheet.getRange(1, 3, 1, numCols).getValues()[0];
   const ranges = sheet.getRange(2, 3, 1, numCols).getDisplayValues()[0];
@@ -1789,7 +1793,10 @@ function generateWeeklyReportByRange(startDateStr, endDateStr) {
   const blueCols = [];
   const yellowCols = [];
 
-  Object.keys(subjectGroups).forEach(subj => {
+  // 取得依序排序之科目（預設：國、英、數、社會、自然、其他，或依自訂順序）
+  const orderedSubjects = sortSubjectsByCustomOrder(Object.keys(subjectGroups), getTutorSubjectOrder());
+
+  orderedSubjects.forEach(subj => {
     subjectGroups[subj].forEach(item => {
       header1.push(subj);
       header2.push(item.range);
@@ -1812,7 +1819,7 @@ function generateWeeklyReportByRange(startDateStr, endDateStr) {
   const totalRankColIdx = header1.length;
 
   const subjRanksMap = {};
-  Object.keys(subjectGroups).forEach(subj => {
+  orderedSubjects.forEach(subj => {
     const subjAvgs = [];
     for (let s = 0; s < studentCount; s++) {
       let sSum = 0, sCnt = 0;
@@ -1835,7 +1842,7 @@ function generateWeeklyReportByRange(startDateStr, endDateStr) {
     const row = [studentInfo[s][0], studentInfo[s][1]];
     let totalWScore = 0, totalW = 0;
 
-    Object.keys(subjectGroups).forEach(subj => {
+    orderedSubjects.forEach(subj => {
       let sSum = 0, sCnt = 0;
       subjectGroups[subj].forEach(item => {
         const sc = scoresMatrix[s][item.colIdx];
@@ -2327,12 +2334,15 @@ function getStudentReportData(startDateStr, endDateStr) {
   const overallRanks = calculateRanks(allWeightedAverages);
   const palette = ["#3498db", "#e74c3c", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22", "#1abc9c", "#34495e"];
 
-  // 打包個人報表數據
+  // 打包個人報表數據（依自訂/預設順序排列各科）
   const reports = [];
+  const orderedReportSubjs = sortSubjectsByCustomOrder(allSubjs, getTutorSubjectOrder());
+
   for (let s = 0; s < studentCount; s++) {
     const subjectDetails = [];
 
-    Object.keys(studentSubjectAvgs[s]).forEach(subj => {
+    orderedReportSubjs.forEach(subj => {
+      if (studentSubjectAvgs[s][subj] === undefined) return;
       subjectDetails.push({
         subject: subj,
         subjectAvg: studentSubjectAvgs[s][subj],
@@ -2463,28 +2473,145 @@ function showWeightSettingDialog() {
 /**
  * 前端初始化讀取兩邊系統的權重資料
  */
+// 預設標準科目排序順序 (國、英、數、社會、自然、其他)
+const DEFAULT_SUBJECT_ORDER_LIST = [
+  "國文", "英文", "數學",
+  "歷史", "地理", "公民",
+  "理化", "物理", "化學", "生物", "地科"
+];
+
+// 預設專任評量類別排序順序
+const DEFAULT_SUBJECT_TYPE_ORDER_LIST = [
+  "段考", "小考", "作業", "筆記"
+];
+
+/**
+ * 前端初始化讀取系統權重與排序設定
+ */
 function getWeightsData() {
   return {
     tutor: getTutorWeights(),
-    subject: getSubjectTeacherWeights()
+    subject: getSubjectTeacherWeights(),
+    tutorOrder: getTutorSubjectOrder(),
+    subjectOrder: getSubjectTypeOrder()
   };
 }
 
 /**
- * 儲存導師與專任加權設定至系統屬性 (TUTOR_SUBJECT_WEIGHTS 及 SUBJECT_TYPE_WEIGHTS)
+ * 儲存導師與專任加權設定及自訂排序至系統屬性
  */
-function saveAllCustomWeights(tutorWeights, subjectWeights) {
+function saveAllCustomWeights(tutorWeights, subjectWeights, tutorOrder, subjectOrder) {
   const props = PropertiesService.getScriptProperties();
-  props.setProperty("TUTOR_SUBJECT_WEIGHTS", JSON.stringify(tutorWeights));
-  props.setProperty("SUBJECT_TYPE_WEIGHTS", JSON.stringify(subjectWeights));
-  return "✅ 導師與專任加權設定已順利更新儲存！";
+  props.setProperty("TUTOR_SUBJECT_WEIGHTS", JSON.stringify(tutorWeights || {}));
+  props.setProperty("SUBJECT_TYPE_WEIGHTS", JSON.stringify(subjectWeights || {}));
+  if (Array.isArray(tutorOrder)) {
+    props.setProperty("TUTOR_SUBJECT_ORDER", JSON.stringify(tutorOrder));
+  }
+  if (Array.isArray(subjectOrder)) {
+    props.setProperty("SUBJECT_TYPE_ORDER", JSON.stringify(subjectOrder));
+  }
+  return "✅ 導師班科目順序/加權與科任類別順序/加權已成功儲存！";
 }
 
 /**
- * 取得導師科目權重：
+ * 取得導師班科目排序順序（陣列）
+ * 1. 優先取用使用者自訂順序 (ScriptProperties)
+ * 2. 次之依預設規則排序：國、英、數、社會(歷史、地理、公民)、自然(理化、物理、化學、生物、地科)、其他
+ */
+function getTutorSubjectOrder() {
+  const props = PropertiesService.getScriptProperties();
+  const json = props.getProperty("TUTOR_SUBJECT_ORDER");
+  if (json) {
+    try {
+      const arr = JSON.parse(json);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    } catch (e) {
+      Logger.log("解析 TUTOR_SUBJECT_ORDER 失敗: " + e.message);
+    }
+  }
+
+  // 取得現有所有科目 keys 並依預設規則排序
+  const weights = getTutorWeights();
+  const keys = Object.keys(weights);
+  return sortSubjectsByDefaultPattern(keys);
+}
+
+/**
+ * 取得科任班評量類別排序順序（陣列）
+ */
+function getSubjectTypeOrder() {
+  const props = PropertiesService.getScriptProperties();
+  const json = props.getProperty("SUBJECT_TYPE_ORDER");
+  if (json) {
+    try {
+      const arr = JSON.parse(json);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    } catch (e) {
+      Logger.log("解析 SUBJECT_TYPE_ORDER 失敗: " + e.message);
+    }
+  }
+  const weights = getSubjectTeacherWeights();
+  const keys = Object.keys(weights);
+  return keys.length > 0 ? keys : DEFAULT_SUBJECT_TYPE_ORDER_LIST.slice();
+}
+
+/**
+ * 預設排序模式：
+ * 國、英、數、社會(歷史、地理、公民)、自然科(理化、物理、化學、生物、地科)、其他
+ */
+function sortSubjectsByDefaultPattern(subjectList) {
+  function getRank(s) {
+    const name = String(s || "").trim();
+    if (!name) return 999;
+    if (name.includes("國")) return 10;
+    if (name.includes("英")) return 20;
+    if (name.includes("數")) return 30;
+    if (name.includes("歷")) return 40;
+    if (name.includes("公民") || name === "公") return 60;
+    if (name.includes("地科") || name.includes("地球科學")) return 110;
+    if (name.includes("地理")) return 50;
+    if (name.includes("理化")) return 70;
+    if (name.includes("物理")) return 80;
+    if (name.includes("化學")) return 90;
+    if (name.includes("生物") || name === "生") return 100;
+    return 500; // 其他科目排在後方
+  }
+
+  return subjectList.slice().sort((a, b) => {
+    const ra = getRank(a);
+    const rb = getRank(b);
+    if (ra !== rb) return ra - rb;
+    return String(a).localeCompare(String(b), "zh-TW");
+  });
+}
+
+/**
+ * 依自訂陣列順序對科目進行排序
+ */
+function sortSubjectsByCustomOrder(subjectList, customOrder) {
+  if (!customOrder || !Array.isArray(customOrder) || customOrder.length === 0) {
+    return sortSubjectsByDefaultPattern(subjectList);
+  }
+
+  const orderMap = {};
+  customOrder.forEach((item, idx) => {
+    orderMap[String(item).trim()] = idx;
+  });
+
+  return subjectList.slice().sort((a, b) => {
+    const nameA = String(a).trim();
+    const nameB = String(b).trim();
+    const idxA = orderMap.hasOwnProperty(nameA) ? orderMap[nameA] : 999;
+    const idxB = orderMap.hasOwnProperty(nameB) ? orderMap[nameB] : 999;
+    if (idxA !== idxB) return idxA - idxB;
+    return sortSubjectsByDefaultPattern([nameA, nameB])[0] === nameA ? -1 : 1;
+  });
+}
+
+/**
+ * 取得導師加權：
  * 1. 優先採用使用者自訂儲存設定 (ScriptProperties)
- * 2. 若未儲存，直接採用全域預設 WEIGHTS 字典
- * 【關鍵修改】：不再自動掃描試算表表頭，避免手寫 OCR 辨識不精確（如：化學、化）污染加權選單
+ * 2. 若未儲存，採用全域預設 WEIGHTS 字典
  */
 function getTutorWeights() {
   const props = PropertiesService.getScriptProperties();
@@ -2499,8 +2626,9 @@ function getTutorWeights() {
 
   // 預設科目加權字典 (若全域未定義則使用備用預設值)
   const defaultWeights = (typeof WEIGHTS !== 'undefined') ? WEIGHTS : {
-    "國文": 5, "英文": 3, "數學": 4, "理化": 3, "生物": 3,
-    "歷史": 1, "地理": 1, "公民": 1
+    "國文": 5, "英文": 3, "數學": 4,
+    "歷史": 1, "地理": 1, "公民": 1,
+    "理化": 3, "生物": 3
   };
 
   return Object.assign({}, defaultWeights);
@@ -2530,16 +2658,24 @@ function getSubjectTeacherWeights() {
   return Object.assign({}, defaultTypes);
 }
 
+
 /**
  * 遍歷所有分頁：計算各分頁底部的「平均分數」與「分數區間人數」
+ * 【智慧增量優化】：僅針對「尚未計算 / 沒有資料」的成績欄位進行補算，已存在的欄位不重複運算
  */
 function generateCurrentSubjectStats() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets();
   let processedTabCount = 0;
+  let totalNewCalculatedCols = 0;
 
   for (const sheet of sheets) {
     const sheetName = sheet.getName();
+    // 排除特殊系統與報表分頁
+    if (sheetName === "System_Settings" || sheetName === "科任跨班分析總表" || sheetName.endsWith("_總成績") || sheetName === "導師班成績統計表") {
+      continue;
+    }
+
     const lastCol = sheet.getLastColumn();
     if (lastCol < 2) continue; // 欄位不足則跳過
 
@@ -2568,15 +2704,16 @@ function generateCurrentSubjectStats() {
       ["不及格人數"]
     ];
 
-    // 清除統計區域舊內容
-    sheet.getRange(statsStartRow, 1, labels.length, lastCol).clearContent();
-
-    // 1. 寫入項目名稱至 A 欄
-    sheet.getRange(statsStartRow, 1, labels.length, 1).setValues(labels).setFontWeight("bold");
+    // 1. 檢查 A 欄統計標題是否已存在，若不存在才寫入標題與格式
+    const currentAValue = String(sheet.getRange(statsStartRow, 1).getValue() || "").trim();
+    if (currentAValue !== "平均分數") {
+      sheet.getRange(statsStartRow, 1, labels.length, 1).setValues(labels).setFontWeight("bold").setBackground("#D5F5E3");
+      sheet.getRange(statsStartRow, 1, labels.length, 1).setHorizontalAlignment("center").setVerticalAlignment("middle");
+    }
 
     let updatedColsCount = 0;
 
-    // 2. 針對所有成績欄位寫入統計公式
+    // 2. 針對成績欄位：僅在「尚未計算/無資料」時才補寫入統計公式
     for (let c = startScoreColIdx; c <= lastCol; c++) {
       const colLetter = getColLetter(c);
 
@@ -2604,6 +2741,16 @@ function generateCurrentSubjectStats() {
         continue;
       }
 
+      // 【核心防呆與增量檢查】：檢查該欄的平均分數儲存格是否已有公式或已有數值
+      const statCell = sheet.getRange(statsStartRow, c);
+      const existingFormula = String(statCell.getFormula() || "").trim();
+      const existingValue = String(statCell.getValue() || "").trim();
+
+      if (existingFormula !== "" || existingValue !== "") {
+        // 該欄已經計算過統計，直接跳過，不重複運算！
+        continue;
+      }
+
       const rangeStr = `${colLetter}4:${colLetter}${studentEndRow}`;
 
       const formulas = [
@@ -2618,23 +2765,28 @@ function generateCurrentSubjectStats() {
         [`=COUNTIFS(${rangeStr}, ">=0", ${rangeStr}, "<60")`]
       ];
 
-      sheet.getRange(statsStartRow, c, formulas.length, 1).setFormulas(formulas);
+      const targetColStatRange = sheet.getRange(statsStartRow, c, formulas.length, 1);
+      targetColStatRange.setFormulas(formulas);
+      targetColStatRange.setBackground("#EAFAF1");
+      targetColStatRange.setHorizontalAlignment("center").setVerticalAlignment("middle");
+
       updatedColsCount++;
     }
 
-    // 3. 套用美化格式
-    const fullStatsRange = sheet.getRange(statsStartRow, 1, labels.length, lastCol);
-    fullStatsRange.setHorizontalAlignment("center").setVerticalAlignment("middle");
-    sheet.getRange(statsStartRow, 1, labels.length, 1).setBackground("#D5F5E3");
-    if (lastCol > 1) {
-      sheet.getRange(statsStartRow, 2, labels.length, lastCol - 1).setBackground("#EAFAF1");
+    if (updatedColsCount > 0) {
+      processedTabCount++;
+      totalNewCalculatedCols += updatedColsCount;
     }
-
-    if (updatedColsCount > 0) processedTabCount++;
   }
 
   // 4. 完成提示（相容自動排程觸發與人工手動按鈕執行）
-  const msg = `✅ 已成功更新全活頁簿統計資訊（共處理 ${processedTabCount} 個分頁）！`;
+  let msg = "";
+  if (totalNewCalculatedCols > 0) {
+    msg = `✅ 已為 ${processedTabCount} 個分頁成功補全 ${totalNewCalculatedCols} 個新欄位的統計資料！`;
+  } else {
+    msg = `✅ 檢查完畢：所有分頁的成績欄位統計皆已存在，無須重複重算。`;
+  }
+
   try {
     SpreadsheetApp.getUi().alert(msg);
   } catch (e) {
