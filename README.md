@@ -30,6 +30,7 @@
 ├── BatchReport.html          # 學生個人成績通知單 (支援批次預覽、列印與匯出 PDF)
 ├── DateRangeDialog.html      # 指定日期區間歷史成績單整理對話框
 ├── WeightSettingDialog.html  # 科目權重與評量類別權重設定介面
+├── 成績系統_標準分頁格式範本.xlsx  # 完整包含 6 大標準分頁之 Excel 範本檔 (直接匯入 Google Drive)
 └── README.md                 # 系統操作與部署說明書
 ```
 
