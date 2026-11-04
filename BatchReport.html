@@ -1,39 +1,178 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <base target="_top">
   <title>區間個人成績報表</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     @media print {
-      .no-print { display: none !important; }
-      .student-card { page-break-after: always; margin: 0 !important; padding: 10px !important; border: none !important; box-shadow: none !important; }
-      .chart-box { height: 180px !important; } /* 列印時縮小圖表高度，確保不跨頁擠壓 */
+      .no-print {
+        display: none !important;
+      }
+
+      .student-card {
+        page-break-after: always;
+        margin: 0 !important;
+        padding: 10px !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .chart-box {
+        height: 180px !important;
+      }
+
+      /* 列印時縮小圖表高度，確保不跨頁擠壓 */
     }
-    body { font-family: "Microsoft JhengHei", Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
-    .no-print-bar { background: #fff; padding: 12px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-    .btn-print { background-color: #27ae60; color: white; border: none; padding: 8px 18px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; }
-    .btn-print:hover { background-color: #219150; }
-    .student-card { background: white; padding: 25px; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 15px; }
-    .title { font-size: 20px; font-weight: bold; color: #2c3e50; }
-    .student-info { font-size: 16px; color: #555; }
-    .summary-box { display: flex; gap: 15px; margin-bottom: 15px; }
-    .badge { flex: 1; background: #ebf5fb; padding: 10px; border-radius: 6px; text-align: center; border-left: 4px solid #3498db; }
-    .badge-title { font-size: 12px; color: #7f8c8d; margin-bottom: 4px; }
-    .badge-value { font-size: 22px; font-weight: bold; color: #2c3e50; }
-    
+
+    body {
+      font-family: "Microsoft JhengHei", Arial, sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    .no-print-bar {
+      background: #fff;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-print {
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-print:hover {
+      background-color: #219150;
+    }
+
+    .student-card {
+      background: white;
+      padding: 25px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .student-info {
+      font-size: 16px;
+      color: #555;
+    }
+
+    .summary-box {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .badge {
+      flex: 1;
+      background: #ebf5fb;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+      border-left: 4px solid #3498db;
+    }
+
+    .badge-title {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-bottom: 4px;
+    }
+
+    .badge-value {
+      font-size: 22px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
     /* 四圖表 2x2 矩陣佈局 */
-    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-    .chart-box { height: 210px; background: #fafafa; padding: 8px; border-radius: 6px; border: 1px solid #eee; position: relative; box-sizing: border-box; }
-    .chart-title { font-size: 12px; font-weight: bold; color: #34495e; text-align: center; margin-bottom: 4px; }
-    
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
-    th, td { border: 1px solid #e0e0e0; padding: 8px 6px; text-align: center; }
-    th { background-color: #f2f4f4; color: #34495e; font-weight: bold; }
-    .section-label { font-size: 14px; font-weight: bold; color: #2c3e50; margin-top: 15px; margin-bottom: 6px; border-left: 3px solid #3498db; padding-left: 6px; }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .chart-box {
+      height: 210px;
+      background: #fafafa;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #eee;
+      position: relative;
+      box-sizing: border-box;
+    }
+
+    .chart-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #34495e;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      border: 1px solid #e0e0e0;
+      padding: 8px 6px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f2f4f4;
+      color: #34495e;
+      font-weight: bold;
+    }
+
+    .section-label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-top: 15px;
+      margin-bottom: 6px;
+      border-left: 3px solid #3498db;
+      padding-left: 6px;
+    }
   </style>
 </head>
+
 <body>
 
   <div class="no-print-bar no-print">
@@ -43,13 +182,26 @@
 
   <div id="reportContainer"></div>
 
+  <!-- 以 application/json 儲存伺服端樣板資料，避免編輯器語法檢查器將 <?!= ... ?> 誤判為 JavaScript 語法錯誤 (Expression expected) -->
+  <script type="application/json" id="serverReportData">
+    <?!= reportData ?>
+  </script>
+
   <script>
-    const reportData = <?!= reportData ?>;
+    let reportData = null;
+    try {
+      const dataElem = document.getElementById("serverReportData");
+      if (dataElem && dataElem.textContent.trim()) {
+        reportData = JSON.parse(dataElem.textContent);
+      }
+    } catch (err) {
+      console.error("無法解析 reportData:", err);
+    }
 
     // 5標相對刻度格式化
     const fiveTierTicks = {
       stepSize: 1,
-      callback: function(value) {
+      callback: function (value) {
         const labels = ['底標下', '底標', '後標', '均標', '前標', '頂標', '滿分'];
         return labels[value] !== undefined ? labels[value] : value;
       }
@@ -281,4 +433,5 @@
     window.onload = renderReports;
   </script>
 </body>
+
 </html>
