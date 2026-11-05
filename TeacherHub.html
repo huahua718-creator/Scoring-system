@@ -1185,6 +1185,30 @@
     }
 
   
+
+    /* 科任內部子分頁按鈕樣式 */
+    .sub-tab-btn {
+      background: white;
+      border: 1px solid #cbd5e1;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #64748b;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .sub-tab-btn:hover {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    .sub-tab-btn.active {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    }
+
   </style>
 </head>
 <body>
@@ -1245,15 +1269,15 @@
       </div>
     </div>
 
-    <!-- 分頁導航 Tabs -->
+    <!-- 第一層主分頁導航 Tabs -->
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('import')">
+      <button class="tab-btn active" id="mainTabBtn-import" onclick="switchMainTab('import')">
         <span>📸</span> 匯入成績單 (AI辨識)
       </button>
-      <button class="tab-btn" onclick="switchTab('tutor')">
+      <button class="tab-btn" id="mainTabBtn-tutor" onclick="switchMainTab('tutor')">
         <span>📊</span> 導師班級主控版
       </button>
-      <button class="tab-btn" onclick="switchTab('subject')">
+      <button class="tab-btn" id="mainTabBtn-subject" onclick="switchMainTab('subject')">
         <span>🔬</span> 科任班級主控版
       </button>
     </div>
@@ -1525,15 +1549,15 @@
       </div>
     </div>
 
-    <!-- Navigation Tabs -->
+    <!-- 科任內部子分頁 Navigation Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('macro')">📈 跨班橫向與趨勢比較 (Macro View)</button>
-      <button class="tab-btn" onclick="switchTab('alerts')">🚨 自動化預警與關注名單 (Auto-Alert)</button>
-      <button class="tab-btn" onclick="switchTab('micro')">👤 個別學生學習歷程卡 (Micro View)</button>
+      <button class="sub-tab-btn active" id="subTabBtn-macro" onclick="switchSubjectSubTab('macro')">📈 跨班橫向與趨勢比較 (Macro View)</button>
+      <button class="sub-tab-btn" id="subTabBtn-alerts" onclick="switchSubjectSubTab('alerts')">🚨 自動化預警與關注名單 (Auto-Alert)</button>
+      <button class="sub-tab-btn" id="subTabBtn-micro" onclick="switchSubjectSubTab('micro')">👤 個別學生學習歷程卡 (Micro View)</button>
     </div>
 
     <!-- TAB 1: Macro View -->
-    <div id="tab-macro" class="tab-panel active">
+    <div id="subtab-macro" class="tab-panel active">
       <!-- 跨班指標對照表 -->
       <div class="panel-card">
         <div class="panel-header">
@@ -1601,7 +1625,7 @@
     </div>
 
     <!-- TAB 2: Auto-Alert System -->
-    <div id="tab-alerts" class="tab-panel">
+    <div id="subtab-alerts" class="tab-panel">
       <div class="panel-card">
         <div class="panel-header">
           <div class="panel-title">⚠️ 需關注學生自動預警標記清單</div>
@@ -1643,7 +1667,7 @@
     </div>
 
     <!-- TAB 3: Micro View -->
-    <div id="tab-micro" class="tab-panel">
+    <div id="subtab-micro" class="tab-panel">
       <div class="panel-card">
         <div class="student-search-box">
           <label style="font-weight:700;">選擇學生：</label>
@@ -2955,19 +2979,53 @@ let currentAnalyticsData = null;
       renderAlertsTable();
     }
 
-    function switchTab(tabId) {
-      document.querySelectorAll('.tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    /* 第一層大分頁切換 (匯入成績單 / 導師主控 / 科任主控) */
+    function switchMainTab(tabId) {
+      document.querySelectorAll('.tab-bar .tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      const btn = document.getElementById('mainTabBtn-' + tabId);
+      if (btn) btn.classList.add('active');
+
+      const content = document.getElementById('tab-' + tabId);
+      if (content) content.classList.add('active');
+
+      if (tabId === 'tutor') {
+        // 切換到導師班級主控版：若尚未載入過數據，自動觸發載入
+        if (!tutorDashboardData) {
+          loadTutorDashboardData();
+        } else {
+          // 重新觸發圖表 resize 避免寬度壓縮
+          setTimeout(() => {
+            if (tutorCharts.macroTrend) tutorCharts.macroTrend.resize();
+            if (tutorCharts.rawRadar) tutorCharts.rawRadar.resize();
+            if (tutorCharts.rawTrend) tutorCharts.rawTrend.resize();
+            if (tutorCharts.fiveTierRadar) tutorCharts.fiveTierRadar.resize();
+            if (tutorCharts.fiveTierTrend) tutorCharts.fiveTierTrend.resize();
+          }, 60);
+        }
+      } else if (tabId === 'subject') {
+        // 切換到科任班級主控版：自動觸發載入群組與數據
+        initSubjectDashboardData();
+      }
+    }
+
+    /* 第二層科任內部子分頁切換 (Macro View / Auto-Alert / Micro View) */
+    function switchSubjectSubTab(tabId) {
+      document.querySelectorAll('.tabs .sub-tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
 
-      event.target.classList.add('active');
-      document.getElementById('tab-' + tabId).classList.add('active');
+      const btn = document.getElementById('subTabBtn-' + tabId);
+      if (btn) btn.classList.add('active');
 
-      // 切換回 Tab 1 時確保圖表適應尺寸
+      const panel = document.getElementById('subtab-' + tabId);
+      if (panel) panel.classList.add('active');
+
       if (tabId === 'macro') {
         setTimeout(() => {
           if (chartMultiLine) chartMultiLine.resize();
           if (chartStackedBar) chartStackedBar.resize();
-        }, 50);
+        }, 60);
       }
     }
 
