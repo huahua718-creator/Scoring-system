@@ -588,6 +588,8 @@ function onOpen() {
     .addItem("🔗 顯示主控台網頁連結 (可分享至手機/平板)", "showTeacherHubUrlDialog")
     .addSeparator()
     .addItem("📱 產生家長查詢端短網址與 QR Code (安全無教師頁)", "showParentShareDialog")
+    .addSeparator()
+    .addItem("📖 產生/更新系統操作說明與範本分頁", "generateSystemManualSheet")
     .addToUi();
 
   ui.createMenu("🏫 導師成績管理")
@@ -601,6 +603,7 @@ function onOpen() {
     .addItem("📦 結算並匯出舊學期資料 (開新學期)", "archiveAndResetSemester")
     .addSeparator()
     .addItem("🛠️ 建立/檢查 [System_Settings] 基礎設定分頁", "initSystemSettingsSheet")
+    .addItem("📖 產生/更新系統操作說明與範本分頁", "generateSystemManualSheet")
     .addToUi();
 
   ui.createMenu("🏫 成績管理工具")
@@ -3248,6 +3251,318 @@ function initSystemSettingsSheet() {
 
   ui.alert("✅ [System_Settings] 分頁建立/檢查完成！請至該分頁填入您的 API Key、資料夾 ID 與各班導師試算表 ID。");
 }
+
+
+// ==========================================
+// 系統操作手冊與標準分頁格式範本產生器
+// ==========================================
+/**
+ * 在當前試算表中自動建立或美化更新 [系統操作說明與範本] 分頁
+ * 將最新系統架構、操作指引與三大分頁格式範本整齊排版於試算表中
+ */
+function generateSystemManualSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = "系統操作說明與範本";
+  let sheet = ss.getSheetByName(sheetName);
+  const ui = SpreadsheetApp.getUi();
+
+  if (sheet) {
+    const resp = ui.alert(
+      "提示",
+      "分頁 [" + sheetName + "] 已存在，是否要重新產生並覆蓋現有內容？",
+      ui.ButtonSet.YES_NO
+    );
+    if (resp !== ui.Button.YES) return;
+    sheet.clear();
+  } else {
+    sheet = ss.insertSheet(sheetName);
+  }
+
+  // 設定格線顯示
+  sheet.setHiddenGridlines(false);
+
+  // 定義顏色與樣式常數
+  const COLOR_PRIMARY = "#1a365d";    // 深藍大標題
+  const COLOR_SECTION = "#2b6cb0";    // 區塊主題藍
+  const COLOR_HEADER = "#4a5568";     // 表頭深灰
+  const COLOR_ROW_ALT = "#f7fafc";    // 交替底色
+  const COLOR_BORDER = "#cbd5e0";     // 邊框淺灰
+  const COLOR_ALERT_BG = "#fffaf0";   // 提示黃底
+  const COLOR_ALERT_TXT = "#744210";  // 提示棕字
+
+  let curRow = 1;
+
+  // 1. 系統大標題
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("🏫 智慧學校成績管理與跨班分析系統 - 操作手冊與分頁格式範本")
+    .setBackground(COLOR_PRIMARY)
+    .setFontColor("#ffffff")
+    .setFontSize(15)
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
+  sheet.setRowHeight(curRow, 44);
+  curRow += 2;
+
+  // 2. 系統架構簡介區塊
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("【壹、 系統核心架構與三大工作站】")
+    .setBackground(COLOR_SECTION)
+    .setFontColor("#ffffff")
+    .setFontSize(11)
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle");
+  sheet.setRowHeight(curRow, 28);
+  curRow++;
+
+  const overviewData = [
+    ["核心模組", "功能說明與特色", "", "", "", "", "", ""],
+    ["📸 AI 手寫成績單辨識與線上校對", "批次上傳多張手寫成績單照片，透過 Gemini Vision AI 辨識並在 TeacherHub 網頁直接進行線上編輯校對，一鍵寫入導師總表或專任分頁。", "", "", "", "", "", ""],
+    ["📊 導師班級全科主控版", "自動讀取歷史測驗至今日區段，整合多科歷程曲線，班級統計看板（平均/及格率/最高最低/標準差），以及個人 2x2 四大診斷圖表（趨勢、0~6階梯五標、雷達、穩定度）。", "", "", "", "", "", ""],
+    ["🔬 科任班級三維度跨班分析", "五碼分頁智慧解析（如國二愛理化），以同年段同科目全體學生為母群計算五標常模堆疊圖；4大預警自動標記清單（危機/退步/波動/進步）；直角90度能力雷達圖與年段頂/均標對照。", "", "", "", "", "", ""],
+    ["🔒 安全 PIN 碼與獨立家長查詢端", "外部存取 TeacherHub 需輸入 TEACHER_PIN（預設 1234，於 System_Settings 自訂）；試算表內部開啟自動免密；家長端專屬安全路由 (?view=student) 支援短網址與 QR Code 分享。", "", "", "", "", "", ""]
+  ];
+
+  for (let i = 0; i < overviewData.length; i++) {
+    const r = curRow + i;
+    sheet.getRange(r, 1).setValue(overviewData[i][0]);
+    sheet.getRange(r, 2, 1, 7).merge().setValue(overviewData[i][1]);
+    if (i === 0) {
+      sheet.getRange(r, 1, 1, 8).setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold");
+    } else {
+      sheet.getRange(r, 1).setBackground("#edf2f7").setFontWeight("bold");
+      sheet.getRange(r, 2, 1, 7).setBackground(i % 2 === 0 ? COLOR_ROW_ALT : "#ffffff").setWrap(true);
+    }
+    sheet.setRowHeight(r, i === 0 ? 24 : 36);
+  }
+  sheet.getRange(curRow, 1, overviewData.length, 8).setBorder(true, true, true, true, true, true, COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  curRow += overviewData.length + 1;
+
+  // 3. 標準分頁格式範本區
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("【貳、 標準分頁格式規範與範本】（請依此格式建立或維護分頁）")
+    .setBackground(COLOR_SECTION)
+    .setFontColor("#ffffff")
+    .setFontSize(11)
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle");
+  sheet.setRowHeight(curRow, 28);
+  curRow++;
+
+  // 3.1 導師成績總表
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("📌 範本一：[導師成績總表] 分頁規範（A1班級防呆、A欄密碼、B欄座號、C欄姓名、第1列科目、第2列範圍、第3列日期 YYYY-MM-DD）")
+    .setFontWeight("bold")
+    .setFontColor("#2c5282");
+  sheet.setRowHeight(curRow, 24);
+  curRow++;
+
+  const tutorTemplate = [
+    ["101", "（此列為第1列:科目名稱）", "國文", "英文", "數學", "理化", "歷史", "生物"],
+    ["", "（此列為第2列:測驗範圍）", "第一課單元卷", "Lesson 1~2", "第一單元乘法", "第一章力與運動", "第一章台灣史", "第一單元細胞"],
+    ["", "（此列為第3列:測驗日期）", "2026-10-05", "2026-10-12", "2026-10-15", "2026-10-20", "2026-10-22", "2026-10-25"],
+    ["密碼", "座號", "姓名", "成績", "成績", "成績", "成績", "成績"],
+    ["1234", "1", "王小明", "85", "92", "78", "88", "90"],
+    ["5678", "2", "李大華", "72", "68", "85", "90", "75"],
+    ["2468", "3", "張小美", "95", "88", "92", "96", "94"]
+  ];
+
+  for (let r = 0; r < tutorTemplate.length; r++) {
+    const rowIdx = curRow + r;
+    sheet.getRange(rowIdx, 1, 1, tutorTemplate[r].length).setValues([tutorTemplate[r]]);
+    if (r === 0) {
+      sheet.getRange(rowIdx, 1).setBackground("#e2e8f0").setFontWeight("bold").setHorizontalAlignment("center");
+      sheet.getRange(rowIdx, 2).setBackground("#fed7d7").setFontColor("#9b2c2c").setFontStyle("italic");
+      sheet.getRange(rowIdx, 3, 1, 6).setBackground("#bee3f8").setFontWeight("bold").setHorizontalAlignment("center");
+    } else if (r === 1) {
+      sheet.getRange(rowIdx, 2).setBackground("#fed7d7").setFontColor("#9b2c2c").setFontStyle("italic");
+      sheet.getRange(rowIdx, 3, 1, 6).setBackground("#e2e8f0").setHorizontalAlignment("center");
+    } else if (r === 2) {
+      sheet.getRange(rowIdx, 2).setBackground("#fed7d7").setFontColor("#9b2c2c").setFontStyle("italic");
+      sheet.getRange(rowIdx, 3, 1, 6).setBackground("#feebc8").setHorizontalAlignment("center").setNumberFormat("@");
+    } else if (r === 3) {
+      sheet.getRange(rowIdx, 1, 1, 8).setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+    } else {
+      sheet.getRange(rowIdx, 1, 1, 8).setBackground(r % 2 === 0 ? COLOR_ROW_ALT : "#ffffff").setHorizontalAlignment("center");
+    }
+    sheet.setRowHeight(rowIdx, 22);
+  }
+  sheet.getRange(curRow, 1, tutorTemplate.length, 8).setBorder(true, true, true, true, true, true, COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  curRow += tutorTemplate.length + 1;
+
+  // 3.2 科任班級分頁
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("📌 範本二：[科任班級分頁] 規範（五碼命名例：國二愛理化，A1班級、A欄座號、B欄姓名、第1列評量類別、第2列範圍、第3列日期）")
+    .setFontWeight("bold")
+    .setFontColor("#2c5282");
+  sheet.setRowHeight(curRow, 24);
+  curRow++;
+
+  const subjectTemplate = [
+    ["國二愛", "（此列為第1列:評量類別）", "平時小考", "平時小考", "隨堂測驗", "第一次段考", "平時小考", "平時小考"],
+    ["", "（此列為第2列:測驗範圍）", "第一單元基本量", "第二單元力的測量", "牛頓第一運動定律", "第一次定期評量", "第三單元摩擦力", "第四單元浮力"],
+    ["", "（此列為第3列:測驗日期）", "2026-09-15", "2026-09-25", "2026-10-08", "2026-10-18", "2026-11-02", "2026-11-15"],
+    ["座號", "姓名", "成績", "成績", "成績", "成績", "成績", "成績"],
+    ["1", "王小明", "88", "92", "85", "90", "94", "89"],
+    ["2", "李大華", "70", "75", "80", "78", "82", "85"],
+    ["3", "張小美", "95", "96", "92", "98", "100", "96"]
+  ];
+
+  for (let r = 0; r < subjectTemplate.length; r++) {
+    const rowIdx = curRow + r;
+    sheet.getRange(rowIdx, 1, 1, subjectTemplate[r].length).setValues([subjectTemplate[r]]);
+    if (r === 0) {
+      sheet.getRange(rowIdx, 1).setBackground("#e2e8f0").setFontWeight("bold").setHorizontalAlignment("center");
+      sheet.getRange(rowIdx, 2).setBackground("#fed7d7").setFontColor("#9b2c2c").setFontStyle("italic");
+      sheet.getRange(rowIdx, 3, 1, 6).setBackground("#c6f6d5").setFontWeight("bold").setHorizontalAlignment("center");
+    } else if (r === 1) {
+      sheet.getRange(rowIdx, 2).setBackground("#fed7d7").setFontColor("#9b2c2c").setFontStyle("italic");
+      sheet.getRange(rowIdx, 3, 1, 6).setBackground("#e2e8f0").setHorizontalAlignment("center");
+    } else if (r === 2) {
+      sheet.getRange(rowIdx, 2).setBackground("#fed7d7").setFontColor("#9b2c2c").setFontStyle("italic");
+      sheet.getRange(rowIdx, 3, 1, 6).setBackground("#feebc8").setHorizontalAlignment("center").setNumberFormat("@");
+    } else if (r === 3) {
+      sheet.getRange(rowIdx, 1, 1, 8).setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+    } else {
+      sheet.getRange(rowIdx, 1, 1, 8).setBackground(r % 2 === 0 ? COLOR_ROW_ALT : "#ffffff").setHorizontalAlignment("center");
+    }
+    sheet.setRowHeight(rowIdx, 22);
+  }
+  sheet.getRange(curRow, 1, subjectTemplate.length, 8).setBorder(true, true, true, true, true, true, COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  curRow += subjectTemplate.length + 1;
+
+  // 3.3 System_Settings 分頁規範
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("📌 範本三：[System_Settings] 基礎設定分頁（A:B欄為全域參數，D:H欄為班級與跨檔對照表）")
+    .setFontWeight("bold")
+    .setFontColor("#2c5282");
+  sheet.setRowHeight(curRow, 24);
+  curRow++;
+
+  const settingsTemplate = [
+    ["項目 (Key)", "設定值 (Value)", "", "Class_Code", "Homeroom_SS_ID", "Target_Sheet_Name", "Key_Column_Name", "Subject_Column"],
+    ["TEACHER_PIN", "1234", "", "101", "1A2b3C... (101導師檔ID)", "導師成績總表", "座號", "理化"],
+    ["GEMINI_API_KEY", "AIzaSy... (API金鑰)", "", "102", "9Z8y7X... (102導師檔ID)", "導師成績總表", "座號", "理化"],
+    ["UPLOAD_FOLDER_ID", "1A2b3C... (資料夾ID)", "", "103", "3M4n5O... (103導師檔ID)", "導師成績總表", "座號", "理化"],
+    ["BACKUP_FOLDER_ID", "4D5e6F... (資料夾ID)", "", "國二愛", "當前試算表或跨檔ID", "導師成績總表", "座號", "理化"],
+    ["BG_FOLDER_ID", "7G8h9I... (資料夾ID)", "", "說明：", "D:H 欄用於科任跨班動態開啟或同步成績至各班導師總表", "", "", ""],
+    ["LOGO_KEYWORD", "logo", "", "", "", "", "", ""]
+  ];
+
+  for (let r = 0; r < settingsTemplate.length; r++) {
+    const rowIdx = curRow + r;
+    sheet.getRange(rowIdx, 1, 1, settingsTemplate[r].length).setValues([settingsTemplate[r]]);
+    if (r === 0) {
+      sheet.getRange(rowIdx, 1, 1, 2).setBackground("#34495e").setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      sheet.getRange(rowIdx, 4, 1, 5).setBackground("#2c3e50").setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+    } else {
+      sheet.getRange(rowIdx, 1).setBackground("#edf2f7").setFontWeight("bold");
+      sheet.getRange(rowIdx, 2).setBackground(r % 2 === 0 ? COLOR_ROW_ALT : "#ffffff");
+      if (r < 5) {
+        sheet.getRange(rowIdx, 4, 1, 5).setBackground(r % 2 === 0 ? COLOR_ROW_ALT : "#ffffff").setHorizontalAlignment("center");
+      }
+    }
+    sheet.setRowHeight(rowIdx, 22);
+  }
+  sheet.getRange(curRow, 1, settingsTemplate.length, 2).setBorder(true, true, true, true, true, true, COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange(curRow, 4, settingsTemplate.length, 5).setBorder(true, true, true, true, true, true, COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  curRow += settingsTemplate.length + 1;
+
+  // 4. 試算表選單操作指南
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("【參、 試算表功能選單快速操作手冊】")
+    .setBackground(COLOR_SECTION)
+    .setFontColor("#ffffff")
+    .setFontSize(11)
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle");
+  sheet.setRowHeight(curRow, 28);
+  curRow++;
+
+  const menuData = [
+    ["選單分類", "功能項目", "操作說明與適用情境", "", "", "", "", ""],
+    ["🌟 教師主控台", "🚀 開啟教師全功能主控台", "直接彈出 TeacherHub 整合工作站，免輸入 PIN 碼即可使用 AI 辨識、導師主控與科任跨班分析。", "", "", "", "", ""],
+    ["", "🔗 顯示主控台網頁連結", "取得部署後的 Web App 完整網址與 PIN 碼，適合在平板、筆電或手機直接瀏覽使用。", "", "", "", "", ""],
+    ["", "📱 產生家長查詢端短網址與 QR Code", "產生家長專屬安全短網址 (?view=student) 與 350x350 QR Code，支援一鍵下載、列印海報與小卡。", "", "", "", "", ""],
+    ["", "📖 產生/更新系統操作說明與範本分頁", "隨時點選此項目即可一鍵在此試算表中自動建立或覆蓋更新本操作手冊分頁。", "", "", "", "", ""],
+    ["🏫 導師成績管理", "📥 執行每日匯入 (自動路由分頁)", "掃描 Google Drive 上傳區手寫照片與 Excel 檔，AI 辨識後自動歸檔並寄送 Gmail 通知。", "", "", "", "", ""],
+    ["", "📥 匯入當前分頁成績至導師總表", "專任登記分頁（如 101理化）後，點選此項目自動比對 A1 防呆寫入導師總表。", "", "", "", "", ""],
+    ["", "📊 產生指定區間歷史成績單", "選取歷史測驗日期區間（預設最早至今日），自動計算加權平均並排序產出區間表。", "", "", "", "", ""],
+    ["", "🖨️ 匯出區間個人報表 (列印/PDF)", "產出全班個人成績通知單（含雷達圖與五標階梯），支援批次預覽與一鍵列印/PDF。", "", "", "", "", ""],
+    ["", "⚙️ 設定科目/類別加權值", "調整各科加權比重，支援拖曳或上移下移設定成績單輸出排序順序。", "", "", "", "", ""],
+    ["", "📦 結算並匯出舊學期資料 (開新學期)", "將全班舊學期成績打包備份至獨立試算表，清空成績欄位開啟新學期。", "", "", "", "", ""],
+    ["", "🛠️ 建立/檢查 [System_Settings]", "檢查全域參數與班級對照表完整性，自動補齊缺少欄位。", "", "", "", "", ""],
+    ["🏫 成績管理工具", "📤 同步當前科任成績至導師試算表", "任教多班時，自動開啟各班導師試算表並比對 A1 防呆後跨檔寫入成績。", "", "", "", "", ""],
+    ["", "📈 開啟科任跨班分析儀表板", "彈出 SubjectDashboard，查看各班走勢、五標堆疊圖、4大預警標記名單與學生歷程卡。", "", "", "", "", ""],
+    ["", "📑 產出科任跨班分析總表分頁", "將分析儀表板數據直接輸出成試算表分頁【科任跨班分析總表】留存。", "", "", "", "", ""],
+    ["", "🍎 計算平均與區間人數", "針對當前分頁尚未計算之欄位，智慧補算班平均、及格率與各級距人數。", "", "", "", "", ""],
+    ["", "🔀 按評量類別排序欄位", "依據第 1 列評量類別與測驗日期自動重排成績欄位順序。", "", "", "", "", ""]
+  ];
+
+  for (let i = 0; i < menuData.length; i++) {
+    const r = curRow + i;
+    sheet.getRange(r, 1).setValue(menuData[i][0]);
+    sheet.getRange(r, 2).setValue(menuData[i][1]);
+    sheet.getRange(r, 3, 1, 6).merge().setValue(menuData[i][2]);
+    if (i === 0) {
+      sheet.getRange(r, 1, 1, 8).setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold");
+    } else {
+      sheet.getRange(r, 1, 1, 2).setBackground("#edf2f7").setFontWeight("bold");
+      sheet.getRange(r, 3, 1, 6).setBackground(i % 2 === 0 ? COLOR_ROW_ALT : "#ffffff").setWrap(true);
+    }
+    sheet.setRowHeight(r, i === 0 ? 24 : 26);
+  }
+  sheet.getRange(curRow, 1, menuData.length, 8).setBorder(true, true, true, true, true, true, COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  curRow += menuData.length + 1;
+
+  // 5. 注意事項與防呆提醒
+  sheet.getRange(curRow, 1, 1, 8).merge()
+    .setValue("【肆、 重要使用規範與防呆提醒】")
+    .setBackground(COLOR_SECTION)
+    .setFontColor("#ffffff")
+    .setFontSize(11)
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle");
+  sheet.setRowHeight(curRow, 28);
+  curRow++;
+
+  const tips = [
+    "1. 📅 測驗日期格式規範：所有分頁的測驗日期（第3列）必須一律填寫為「YYYY-MM-DD」（例如：2026-10-15），以免造成日期排序或區間篩選錯誤。",
+    "2. 🛡️ A1 班級防呆機制：導師總表與專任分頁的 A1 儲存格必須填寫正確班級（如 101 或 國二愛），匯入時若與對照表不符將自動攔截，防止成績填錯班級。",
+    "3. 🔑 教師安全 PIN 碼：外部瀏覽器開啟 TeacherHub 時預設 PIN 碼為「1234」，可於 [System_Settings] 中的 TEACHER_PIN 自行修改。於試算表選單開啟則免輸 PIN 碼。",
+    "4. 📱 家長分享安全路由：切勿將 TeacherHub 網址直接傳給家長！請務必使用「產生家長查詢端短網址與 QR Code」功能，家長端路徑帶有「?view=student」，完全隔離教師權限。",
+    "5. 🤖 Gemini AI 辨識注意：請確保 [System_Settings] 中的 GEMINI_API_KEY 已填入正確金鑰；拍照時請盡量光線充足、正對成績單平拍，辨識後可於網頁直接校對確認。"
+  ];
+
+  for (let i = 0; i < tips.length; i++) {
+    const r = curRow + i;
+    sheet.getRange(r, 1, 1, 8).merge()
+      .setValue(tips[i])
+      .setBackground(COLOR_ALERT_BG)
+      .setFontColor(COLOR_ALERT_TXT)
+      .setFontWeight("bold")
+      .setVerticalAlignment("middle")
+      .setWrap(true);
+    sheet.setRowHeight(r, 28);
+  }
+  sheet.getRange(curRow, 1, tips.length, 8).setBorder(true, true, true, true, true, true, "#ecc94b", SpreadsheetApp.BorderStyle.SOLID);
+  curRow += tips.length + 1;
+
+  // 調整各欄寬度
+  sheet.setColumnWidth(1, 140);
+  sheet.setColumnWidth(2, 220);
+  sheet.setColumnWidth(3, 110);
+  sheet.setColumnWidth(4, 110);
+  sheet.setColumnWidth(5, 120);
+  sheet.setColumnWidth(6, 120);
+  sheet.setColumnWidth(7, 120);
+  sheet.setColumnWidth(8, 120);
+
+  // 切換至說明分頁並提示
+  ss.setActiveSheet(sheet);
+  ui.alert("✅ [系統操作說明與範本] 分頁已成功產生！\n您可以隨時在此分頁查閱最新操作指引與標準表格範本。");
+}
+
 
 
 // ==========================================
