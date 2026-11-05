@@ -172,6 +172,15 @@ const SUBJECT_TYPE_WEIGHTS = {
 // 1. Web App 網頁查詢端進入點
 // ==========================================
 function doGet(e) {
+  // 支援教師全功能主控台 (手寫成績單AI辨識匯入 + 導師主控版 + 科任主控版)
+  if (e && e.parameter && (e.parameter.page === "teacher" || e.parameter.mode === "teacher" || e.parameter.page === "hub")) {
+    return HtmlService.createTemplateFromFile('TeacherHub')
+      .evaluate()
+      .setTitle('教師全功能主控台')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   // 支援科任教師儀表板專用頁面 (例如: ?page=dashboard 或 ?mode=subject)
   if (e && e.parameter && (e.parameter.page === "dashboard" || e.parameter.mode === "subject")) {
     return HtmlService.createTemplateFromFile('SubjectDashboard')
@@ -571,6 +580,11 @@ function generateBatchReportHtml(startDateStr, endDateStr) {
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   
+  ui.createMenu("🌟 教師主控台")
+    .addItem("🚀 開啟教師全功能主控台 (辨識匯入 / 導師主控 / 科任主控)", "showTeacherHubDialog")
+    .addItem("🔗 顯示主控台網頁連結 (可分享至手機/平板)", "showTeacherHubUrlDialog")
+    .addToUi();
+
   ui.createMenu("🏫 導師成績管理")
     .addItem("📥 執行每日匯入 (自動路由分頁)", "importDailyScores")
     .addItem("📥 匯入當前分頁成績至導師總表 (5字解析比對)", "importSubjectSheetToTutorSheetUI")
@@ -3840,4 +3854,648 @@ function createSubjectAnalyticsSheetUI() {
       ui.alert("❌ 輸入編號無效！");
     }
   }
+}
+
+
+/**
+ * ==========================================
+ * 教師全功能主控台 (TeacherHub) 後端支援模組
+ * 1. 手寫成績單多圖辨識 (recognizeUploadedImages)
+ * 2. 校對確認存檔匯入 (saveConfirmedOcrScores)
+ * 3. 導師班級主控版數據 (getTutorDashboardData)
+ * 4. 系統班級與科目清單查詢 (getAvailableClassesAndSubjects)
+ * 5. Web App 與試算表選單入口 (showTeacherHubDialog / doGet 整合)
+ * ==========================================
+ */
+
+/**
+ * 取得試算表中現有的班級代碼、科目名稱與導師班學生名單
+ */
+function getAvailableClassesAndSubjects() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  const mainSheet = ss.getSheetByName("導師成績總表") || sheets[0];
+  const mainClassName = normalizeClassName(String(mainSheet ? mainSheet.getRange("A1").getValue() : "").trim());
+
+  // 1. 導師班學生名單 (座號 -> 姓名)
+  const tutorStudents = [];
+  if (mainSheet) {
+    const studentEndRow = getStudentEndRow(mainSheet, 2, 3);
+    const count = studentEndRow - 3;
+    if (count > 0) {
+      const vals = mainSheet.getRange(4, 2, count, 2).getValues();
+      vals.forEach(r => {
+        const seat = parseInt(r[0], 10);
+        const name = String(r[1] || "").trim();
+        if (!isNaN(seat)) {
+          tutorStudents.push({ seat: seat, name: name });
+        }
+      });
+    }
+  }
+
+  // 2. 蒐集系統所有班級與科目
+  const classesSet = new Set();
+  const subjectsSet = new Set(["國文", "英文", "數學", "理化", "物理", "化學", "生物", "地科", "歷史", "地理", "公民"]);
+
+  if (mainClassName) classesSet.add(mainClassName);
+
+  // 檢查所有工作表
+  sheets.forEach(sh => {
+    const sName = sh.getName();
+    // 檢查是否為專任五碼格式 (如 101理化 或 國二愛理化)
+    const info = parseSubjectSheetInfo(sName);
+    if (info) {
+      classesSet.add(info.classCode);
+      subjectsSet.add(info.subject);
+    }
+  });
+
+  // 檢查 System_Settings 設定頁
+  try {
+    const sysSheet = ss.getSheetByName("System_Settings");
+    if (sysSheet && sysSheet.getLastRow() >= 2) {
+      const data = sysSheet.getRange("D2:H" + sysSheet.getLastRow()).getValues();
+      data.forEach(r => {
+        const cCode = String(r[0]).trim();
+        const sCol = String(r[4] || "").trim();
+        if (cCode) classesSet.add(cCode);
+        if (sCol) subjectsSet.add(sCol);
+      });
+    }
+  } catch (e) {
+    // 略過
+  }
+
+  return {
+    mainClassName: mainClassName,
+    classes: Array.from(classesSet).filter(Boolean),
+    subjects: Array.from(subjectsSet).filter(Boolean),
+    evalTypes: ["小考", "平時測驗", "作業", "段考", "期中考", "期末考", "筆記", "課堂表現", "週考"],
+    tutorStudents: tutorStudents
+  };
+}
+
+/**
+ * 網頁端呼叫：批量手寫成績單照片 AI 辨識 (支援多圖)
+ * @param {Array<Object>} imagesData [{ name: string, mimeType: string, base64: string }, ...]
+ * @returns {Array<Object>} 各張照片的結構化辨識成果，供前端校對表格呈現
+ */
+function recognizeUploadedImages(imagesData) {
+  if (!imagesData || !Array.isArray(imagesData) || imagesData.length === 0) {
+    throw new Error("未接收到任何照片數據！");
+  }
+
+  const meta = getAvailableClassesAndSubjects();
+  const mainClassName = meta.mainClassName;
+  const tutorStudentMap = {};
+  meta.tutorStudents.forEach(st => {
+    tutorStudentMap[st.seat] = st.name;
+  });
+
+  const prompt = `你是一個精準的手寫成績單 OCR 辨識助手。請仔細分析這張成績單照片，判斷其「班級」、「科目」、「評量類型」與各座號成績數據，並嚴格回傳純 JSON 格式：
+
+{
+  "className": "班級名稱(例如: 101, 102, 國二愛, 國二仁，未註記則填空字串)",
+  "subject": "科目名稱(例如: 國文, 英文, 數學, 理化, 歷史, 地理, 公民, 生物...)",
+  "type": "評量類型(例如: 小考, 作業, 段考, 筆記，若無標示預設填 小考)",
+  "examRange": "考試範圍或測驗單元名稱(例如: 第一章, 1-1~1-2, Unit 3，若無則填寫 無範圍)",
+  "columns": [
+    {
+      "range": "考試範圍或單元名稱",
+      "scores": [
+        {"seat": 1, "score": 85},
+        {"seat": 2, "score": 90}
+      ]
+    }
+  ]
+}
+
+【辨識規則說明】：
+1. 班級與科目：尋找照片頂端或標題手寫字（如「101」、「102」、「二愛」、「國二仁」、「理化小考」）。
+2. 評量類型 (type)：辨識是否有「段考」、「小考」、「作業」、「筆記」等字樣，未標示則填「小考」。
+3. 考試範圍 (examRange)：辨識範圍字樣，未註明可填「無範圍」。
+4. 座號與成績 (scores)：
+   - seat 請轉為純整數數字 (如 1, 2, 3...)。
+   - score 請轉為數值。
+   - 被劃刪除線、空白、缺考者，該座號 score 請填寫 null 或忽略。
+
+【輸出格式限制】：
+- 嚴格僅輸出純文字 JSON，絕對不要包含任何 Markdown 標記 (如 \`\`\`json)。`;
+
+  const dynamicModel = getLatestFlashModelName();
+  const candidateModels = Array.from(new Set([
+    "gemini-flash-lite-latest",
+    dynamicModel,
+    "gemini-flash-latest",
+    "gemini-3.6-flash",
+    "gemini-2.5-flash"
+  ].filter(Boolean)));
+
+  const apiKey = getActiveGeminiApiKey();
+  const todayStr = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd");
+  const results = [];
+
+  for (let i = 0; i < imagesData.length; i++) {
+    const imgItem = imagesData[i];
+    const fileName = imgItem.name || `photo_${i + 1}.jpg`;
+    let mimeType = imgItem.mimeType || "image/jpeg";
+    if (mimeType === "application/octet-stream" || !mimeType) {
+      mimeType = "image/jpeg";
+    }
+
+    let rawBase64 = imgItem.base64 || "";
+    // 若前端傳入含有 data:image/png;base64, 前綴，則去除
+    if (rawBase64.indexOf("base64,") !== -1) {
+      rawBase64 = rawBase64.split("base64,")[1];
+    }
+
+    const singleResult = {
+      fileIndex: i,
+      fileName: fileName,
+      imageBase64: rawBase64,
+      recognizedSuccess: false,
+      className: "",
+      subject: "理化",
+      type: "小考",
+      examRange: "無範圍",
+      examDate: todayStr,
+      scores: [],
+      error: null
+    };
+
+    if (!rawBase64) {
+      singleResult.error = "照片內容為空";
+      results.push(singleResult);
+      continue;
+    }
+
+    let recognizedText = "";
+    let apiError = null;
+
+    for (const modelName of candidateModels) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const payload = {
+        "contents": [{
+          "parts": [
+            { "text": prompt },
+            { "inline_data": { "mime_type": mimeType, "data": rawBase64 } }
+          ]
+        }]
+      };
+
+      try {
+        const resp = UrlFetchApp.fetch(url, {
+          method: "post",
+          contentType: "application/json",
+          payload: JSON.stringify(payload),
+          muteHttpExceptions: true
+        });
+
+        const json = JSON.parse(resp.getContentText());
+        if (json.error) {
+          const msg = json.error.message || "";
+          if (msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("not found") || json.error.code === 429) {
+            apiError = new Error(`[${modelName}] 額度不足或忙碌: ${msg}`);
+            continue; // 切換下一個模型
+          }
+          throw new Error(`Gemini API 錯誤: ${msg}`);
+        }
+
+        if (json.candidates && json.candidates.length > 0 && json.candidates[0].content) {
+          recognizedText = json.candidates[0].content.parts[0].text;
+          apiError = null;
+          break; // 成功取得
+        }
+      } catch (err) {
+        apiError = err;
+      }
+    }
+
+    if (!recognizedText) {
+      singleResult.error = apiError ? apiError.message : "無法取得辨識內容";
+      results.push(singleResult);
+      continue;
+    }
+
+    // 解析 JSON
+    try {
+      let cleanText = recognizedText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleanText);
+
+      let parsedClass = parsed.className ? normalizeClassName(parsed.className.trim()) : "";
+      if (!parsedClass) parsedClass = mainClassName;
+
+      let parsedSubj = parsed.subject ? parsed.subject.trim() : "理化";
+      let parsedType = parsed.type ? parsed.type.trim() : "小考";
+      let parsedRange = parsed.examRange ? parsed.examRange.trim() : "";
+
+      const scoreItems = [];
+      const scoreMap = new Map();
+
+      if (parsed.columns && Array.isArray(parsed.columns) && parsed.columns.length > 0) {
+        if (!parsedRange && parsed.columns[0].range) {
+          parsedRange = parsed.columns[0].range;
+        }
+        const colScores = parsed.columns[0].scores || [];
+        colScores.forEach(item => {
+          if (item.seat !== undefined && item.seat !== null && item.score !== null && item.score !== undefined) {
+            const seatNum = parseInt(item.seat, 10);
+            const scoreVal = Number(item.score);
+            if (!isNaN(seatNum) && !isNaN(scoreVal)) {
+              scoreMap.set(seatNum, scoreVal);
+            }
+          }
+        });
+      }
+
+      // 如果有對應導師班學生名單，依序填入姓名
+      if (scoreMap.size > 0) {
+        // 依座號排序
+        const sortedSeats = Array.from(scoreMap.keys()).sort((a, b) => a - b);
+        sortedSeats.forEach(stNum => {
+          scoreItems.push({
+            seat: stNum,
+            name: tutorStudentMap[stNum] || `座號${stNum}`,
+            score: scoreMap.get(stNum)
+          });
+        });
+      }
+
+      singleResult.recognizedSuccess = true;
+      singleResult.className = parsedClass;
+      singleResult.subject = parsedSubj;
+      singleResult.type = parsedType;
+      singleResult.examRange = parsedRange || "無範圍";
+      singleResult.scores = scoreItems;
+    } catch (parseErr) {
+      singleResult.error = `解析辨識結果失敗: ${parseErr.message} (原始回應: ${recognizedText.substring(0, 100)})`;
+    }
+
+    results.push(singleResult);
+  }
+
+  return results;
+}
+
+/**
+ * 網頁端呼叫：儲存教師校對後的成績數據並寫入試算表
+ * @param {Array<Object>} confirmedList 教師校對後的項目陣列
+ * @returns {Object} 匯入結果日誌
+ */
+function saveConfirmedOcrScores(confirmedList) {
+  if (!confirmedList || !Array.isArray(confirmedList) || confirmedList.length === 0) {
+    throw new Error("沒有要存檔的成績項目！");
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const mainSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const mainClassName = normalizeClassName(String(mainSheet.getRange("A1").getValue()).trim());
+
+  let backupFolder = null;
+  try {
+    backupFolder = DriveApp.getFolderById(getActiveBackupFolderId());
+  } catch (e) {
+    Logger.log("備份資料夾未設定或無法取得: " + e.message);
+  }
+
+  const logs = [];
+  let successCount = 0;
+
+  for (let idx = 0; idx < confirmedList.length; idx++) {
+    const item = confirmedList[idx];
+    const className = normalizeClassName(String(item.className || "").trim());
+    const subject = String(item.subject || "").trim();
+    const evalType = String(item.type || "小考").trim();
+    const examRange = String(item.examRange || "無範圍").trim();
+    const examDate = String(item.examDate || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd")).trim();
+    const scores = item.scores || [];
+
+    if (!className || !subject) {
+      logs.push(`⚠️ 第 ${idx + 1} 筆項目因缺少班級或科目而略過。`);
+      continue;
+    }
+
+    // 建立座號對成績 Map
+    const scoreMap = new Map();
+    scores.forEach(s => {
+      const seat = parseInt(s.seat, 10);
+      const score = Number(s.score);
+      if (!isNaN(seat) && !isNaN(score)) {
+        scoreMap.set(seat, score);
+      }
+    });
+
+    if (scoreMap.size === 0) {
+      logs.push(`⚠️ 班級 [${className}] ${subject} 無有效分數，已略過。`);
+      continue;
+    }
+
+    let writtenTargets = [];
+
+    // 1. 若為本導師班，寫入「導師成績總表」
+    if (className === mainClassName && mainSheet) {
+      const lastCol = mainSheet.getLastColumn();
+      const startCol = (lastCol < 3) ? 4 : lastCol + 1;
+
+      mainSheet.getRange(1, startCol).setValue(subject);
+      mainSheet.getRange(2, startCol).setNumberFormat("@").setValue(examRange);
+      mainSheet.getRange(3, startCol).setValue(examDate);
+
+      const studentEndRow = getStudentEndRow(mainSheet, 2, 3);
+      const totalStudents = studentEndRow - 3;
+
+      if (totalStudents > 0) {
+        const seatList = mainSheet.getRange(4, 2, totalStudents, 1).getValues();
+        const outputScores = seatList.map(r => {
+          const seatNum = parseInt(r[0], 10);
+          return [scoreMap.has(seatNum) ? scoreMap.get(seatNum) : ""];
+        });
+        mainSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores);
+      }
+      writtenTargets.push(`導師成績總表 (第 ${startCol} 欄)`);
+    }
+
+    // 2. 搜尋或寫入專任班級分頁 (如 101理化 或 國二愛理化)
+    const specialSheetName = `${className}${subject}`;
+    let specialSheet = ss.getSheetByName(specialSheetName);
+
+    if (specialSheet) {
+      const lastCol = specialSheet.getLastColumn();
+      const startCol = (lastCol < 2) ? 3 : lastCol + 1;
+
+      specialSheet.getRange(1, startCol).setValue(evalType);
+      specialSheet.getRange(2, startCol).setNumberFormat("@").setValue(examRange);
+      specialSheet.getRange(3, startCol).setValue(examDate);
+
+      const studentEndRow = getStudentEndRow(specialSheet, 1, 2);
+      const totalStudents = studentEndRow - 3;
+
+      if (totalStudents > 0) {
+        const seatList = specialSheet.getRange(4, 1, totalStudents, 1).getValues();
+        const outputScores = seatList.map(r => {
+          const seatNum = parseInt(r[0], 10);
+          return [scoreMap.has(seatNum) ? scoreMap.get(seatNum) : ""];
+        });
+        specialSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores);
+      }
+      writtenTargets.push(`科任分頁 [${specialSheetName}] (第 ${startCol} 欄)`);
+    }
+
+    // 3. 檢查 System_Settings 是否有跨檔導師試算表需要同步
+    try {
+      const homeroomConfig = getHomeroomConfig(className);
+      if (homeroomConfig && homeroomConfig.homeroomSSID) {
+        const targetSS = SpreadsheetApp.openById(homeroomConfig.homeroomSSID);
+        const targetSheet = targetSS.getSheetByName(homeroomConfig.targetSheetName || "導師成績總表");
+        if (targetSheet) {
+          const tA1 = normalizeClassName(String(targetSheet.getRange("A1").getValue()).trim());
+          if (tA1.indexOf(className) !== -1 || className.indexOf(tA1) !== -1) {
+            addNewSubjectColumnToTutorSheet(subject, examRange, examDate, scoreMap, targetSheet);
+            writtenTargets.push(`跨檔導師總表 (${targetSS.getName()} - ${targetSheet.getName()})`);
+          }
+        }
+      }
+    } catch (e) {
+      // 找不到或無設定則略過
+    }
+
+    // 4. 若有傳入照片 Base64，備份至 Google Drive
+    if (backupFolder && item.imageBase64) {
+      try {
+        const bytes = Utilities.base64Decode(item.imageBase64);
+        const bFileName = `[${className}_${subject}_${examRange}]_${item.fileName || "scores.jpg"}`;
+        const blob = Utilities.newBlob(bytes, "image/jpeg", bFileName);
+        backupFolder.createFile(blob);
+      } catch (err) {
+        Logger.log(`照片備份失敗: ${err.message}`);
+      }
+    }
+
+    if (writtenTargets.length > 0) {
+      successCount++;
+      logs.push(`✅ 成功匯入 [${className}] ${subject} (${examRange})，寫入目標：${writtenTargets.join("、")}，共 ${scoreMap.size} 筆成績。`);
+    } else {
+      logs.push(`⚠️ [${className}] ${subject} 未找到匹配之導師總表或科任分頁 [${specialSheetName}]，請確認分頁名稱。`);
+    }
+  }
+
+  // 嘗試執行統計計算更新
+  try {
+    generateCurrentSubjectStats();
+  } catch (statErr) {
+    // 忽略
+  }
+
+  return {
+    success: successCount > 0,
+    totalProcessed: confirmedList.length,
+    successCount: successCount,
+    logs: logs
+  };
+}
+
+/**
+ * 網頁端呼叫：取得導師班級主控版完整數據
+ * 包含：
+ * 1. 班級各科巨觀學習曲線數據 (班平均隨週次/測驗起伏)
+ * 2. 班級各科統計概況 (平均、標準差、及格率、五標)
+ * 3. 各學生個人微觀診斷數據 (整合 BatchReport 四大圖表與明細)
+ */
+function getTutorDashboardData(startDateStr, endDateStr) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tutorSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  if (!tutorSheet) throw new Error("找不到導師成績總表！");
+
+  const className = normalizeClassName(String(tutorSheet.getRange("A1").getValue()).trim()) || "導師班";
+
+  // 1. 呼叫既有的 getStudentReportData 取得每位學生個人完整報表
+  const reportPackage = getStudentReportData(startDateStr, endDateStr);
+  const reports = reportPackage.reports || [];
+
+  // 2. 彙整全班各科學習曲線 (Macro View)
+  const studentEndRow = getStudentEndRow(tutorSheet, 2, 3);
+  const studentCount = studentEndRow - 3;
+  const lastCol = tutorSheet.getLastColumn();
+
+  const classMacroTrend = {
+    weeks: [],
+    datasets: []
+  };
+
+  const subjectStatsList = [];
+
+  if (studentCount > 0 && lastCol >= 4) {
+    const subjects = tutorSheet.getRange(1, 4, 1, lastCol - 3).getDisplayValues()[0];
+    const ranges = tutorSheet.getRange(2, 4, 1, lastCol - 3).getDisplayValues()[0];
+    const dates = tutorSheet.getRange(3, 4, 1, lastCol - 3).getValues()[0];
+    const allScores = tutorSheet.getRange(4, 4, studentCount, lastCol - 3).getValues();
+
+    const startDt = parseDateHelper(startDateStr);
+    const endDt = parseDateHelper(endDateStr);
+    if (startDt) startDt.setHours(0, 0, 0, 0);
+    if (endDt) endDt.setHours(23, 59, 59, 999);
+
+    let minDate = null;
+    for (let c = 0; c < dates.length; c++) {
+      const dt = parseDateHelper(dates[c]);
+      if (dt && (!minDate || dt < minDate)) minDate = dt;
+    }
+    if (!minDate) minDate = new Date();
+    minDate.setHours(0, 0, 0, 0);
+
+    // 收集符合區間的欄位
+    const validColumns = [];
+    const weeksSet = new Set();
+    const subjectScoresMap = {}; // 科目 -> [所有成績]
+    const subjectWeekAvgsMap = {}; // 科目 -> { weekLabel: [平均分, ...] }
+
+    for (let c = 0; c < dates.length; c++) {
+      const subj = String(subjects[c] || "").trim();
+      if (!subj) continue;
+
+      const d = parseDateHelper(dates[c]);
+      if (!d || ((!startDt || d >= startDt) && (!endDt || d <= endDt))) {
+        const refDate = d || new Date();
+        const diffDays = Math.floor((refDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
+        const weekLabel = `第${Math.max(1, Math.floor(diffDays / 7) + 1)}週`;
+        weeksSet.add(weekLabel);
+
+        const colScores = [];
+        for (let s = 0; s < studentCount; s++) {
+          const val = Number(allScores[s][c]);
+          if (allScores[s][c] !== "" && allScores[s][c] !== null && !isNaN(val)) {
+            colScores.push(val);
+          }
+        }
+
+        if (colScores.length > 0) {
+          const colAvg = colScores.reduce((a, b) => a + b, 0) / colScores.length;
+          if (!subjectScoresMap[subj]) subjectScoresMap[subj] = [];
+          subjectScoresMap[subj].push(...colScores);
+
+          if (!subjectWeekAvgsMap[subj]) subjectWeekAvgsMap[subj] = {};
+          if (!subjectWeekAvgsMap[subj][weekLabel]) subjectWeekAvgsMap[subj][weekLabel] = [];
+          subjectWeekAvgsMap[subj][weekLabel].push(colAvg);
+
+          validColumns.push({
+            colIdx: c,
+            subject: subj,
+            range: ranges[c] || "無範圍",
+            date: d ? Utilities.formatDate(d, "GMT+8", "MM/dd") : "-",
+            weekLabel: weekLabel,
+            avg: Math.round(colAvg * 10) / 10,
+            count: colScores.length
+          });
+        }
+      }
+    }
+
+    const sortedWeeks = Array.from(weeksSet).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ""), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ""), 10) || 0;
+      return numA - numB;
+    });
+
+    classMacroTrend.weeks = sortedWeeks.length > 0 ? sortedWeeks : ["無資料"];
+
+    const palette = [
+      "#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6",
+      "#ec4899", "#06b6d4", "#84cc16", "#6366f1", "#14b8a6"
+    ];
+
+    const orderedSubjs = sortSubjectsByDefaultPattern(Object.keys(subjectScoresMap));
+
+    orderedSubjs.forEach((subj, sIdx) => {
+      const weekData = sortedWeeks.map(w => {
+        if (subjectWeekAvgsMap[subj] && subjectWeekAvgsMap[subj][w]) {
+          const arr = subjectWeekAvgsMap[subj][w];
+          return Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
+        }
+        return null;
+      });
+
+      classMacroTrend.datasets.push({
+        label: subj,
+        data: weekData,
+        borderColor: palette[sIdx % palette.length],
+        backgroundColor: palette[sIdx % palette.length],
+        fill: false,
+        tension: 0.25,
+        spanGaps: true
+      });
+
+      // 計算各科總覽指標
+      const allSubjScores = subjectScoresMap[subj] || [];
+      const stats = calculateScoreStats(allSubjScores);
+      const pObj = calculateFiveTierPercentiles(allSubjScores);
+
+      subjectStatsList.push({
+        subject: subj,
+        examCount: (subjectWeekAvgsMap[subj] ? Object.values(subjectWeekAvgsMap[subj]).flat().length : 0),
+        totalScoresCount: allSubjScores.length,
+        average: stats.avg,
+        passRate: stats.passRate,
+        maxScore: stats.max,
+        minScore: stats.min,
+        stdDev: stats.stdDev,
+        fiveTiers: {
+          top: pObj.p88,
+          high: pObj.p75,
+          median: pObj.p50,
+          low: pObj.p25,
+          bottom: pObj.p12
+        }
+      });
+    });
+  }
+
+  // 學生簡要索引列表
+  const studentList = reports.map((rpt, idx) => ({
+    index: idx,
+    seat: rpt.info.seat,
+    name: rpt.info.name,
+    weightedAvg: rpt.summary.weightedAvg,
+    rank: rpt.summary.rank
+  }));
+
+  return {
+    className: className,
+    startDate: startDateStr,
+    endDate: endDateStr,
+    studentCount: reports.length,
+    studentList: studentList,
+    classMacroTrend: classMacroTrend,
+    subjectStatsList: subjectStatsList,
+    reports: reports
+  };
+}
+
+/**
+ * 試算表選單呼叫：開啟教師主控台視窗
+ */
+function showTeacherHubDialog() {
+  const html = HtmlService.createTemplateFromFile("TeacherHub")
+    .evaluate()
+    .setWidth(1200)
+    .setHeight(850)
+    .setTitle("🌟 教師全功能主控台 (成績辨識 / 導師主控 / 科任主控)");
+  SpreadsheetApp.getUi().showModalDialog(html, "🌟 教師全功能主控台");
+}
+
+/**
+ * 試算表選單呼叫：顯示教師主控台網頁連結
+ */
+function showTeacherHubUrlDialog() {
+  const url = ScriptApp.getService().getUrl() + "?page=teacher";
+  const html = HtmlService.createHtmlOutput(`
+    <div style="font-family:sans-serif; padding:15px; text-align:center;">
+      <p style="font-size:16px; font-weight:bold; margin-bottom:12px;">🌟 教師全功能主控台網頁連結</p>
+      <input type="text" value="${url}" readonly style="width:100%; padding:8px; font-size:14px; box-sizing:border-box; margin-bottom:15px;" id="urlInput">
+      <br>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('urlInput').value); alert('已複製連結！');" style="padding:8px 16px; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">📋 複製連結</button>
+      <a href="${url}" target="_blank" style="display:inline-block; margin-left:10px; padding:8px 16px; background:#10b981; color:white; text-decoration:none; border-radius:4px; font-size:14px;">🚀 直接開啟網頁</a>
+    </div>
+  `).setWidth(450).setHeight(180);
+  SpreadsheetApp.getUi().showModalDialog(html, "教師主控台網址");
 }

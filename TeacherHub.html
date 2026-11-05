@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>教師全功能主控台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #0ea5e9;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --radius: 10px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Microsoft JhengHei", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f1f5f9;
+      color: var(--gray-800);
+      overflow-x: hidden;
+    }
+
+    /* 頂部導航列 */
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      padding: 12px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      font-size: 26px;
+      background: rgba(255,255,255,0.1);
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .brand-subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* Tab 導航列 */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,0.08);
+      padding: 4px;
+      border-radius: 8px;
+    }
+    .tab-btn {
+      background: transparent;
+      color: #cbd5e1;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      color: white;
+      background: rgba(255,255,255,0.12);
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 2px 6px rgba(37,99,235,0.4);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-action {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-action:hover {
+      background: rgba(255,255,255,0.22);
+    }
+
+    /* 主要容器 */
+    main {
+      padding: 20px 24px 60px 24px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 通用卡片 */
+    .card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--gray-200);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gray-800);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 0;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    /* 按鈕樣式 */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #059669; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-warning:hover { background: #d97706; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-secondary { background: var(--gray-200); color: var(--gray-700); }
+    .btn-secondary:hover { background: var(--gray-300); }
+
+    /* =========================================================
+       Tab 1: 影像辨識與校對匯入樣式
+    ========================================================= */
+    .upload-zone {
+      border: 2px dashed #93c5fd;
+      background: #f8fafc;
+      padding: 30px;
+      text-align: center;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      background: #eff6ff;
+      border-color: var(--primary);
+    }
+    .upload-icon {
+      font-size: 42px;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+    .upload-hint {
+      font-size: 13px;
+      color: var(--gray-600);
+      margin-top: 6px;
+    }
+
+    /* 圖片縮圖卡片清單 */
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .file-card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+    .file-thumb {
+      width: 100%;
+      height: 110px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #e2e8f0;
+    }
+    .file-name {
+      font-size: 12px;
+      font-weight: bold;
+      margin: 6px 0 2px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-status-badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-loading { background: #e0f2fe; color: #0369a1; }
+    .status-done { background: #dcfce7; color: #166534; }
+    .status-fail { background: #fee2e2; color: #991b1b; }
+    .file-remove-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 22px;
+    }
+
+    /* 校對表單卡片 */
+    .review-card {
+      background: white;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: var(--shadow);
+    }
+    .review-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      background: #f8fafc;
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      border: 1px solid var(--gray-200);
+    }
+    .review-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .review-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-600);
+    }
+    .review-field input, .review-field select {
+      padding: 6px 10px;
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-800);
+    }
+    .review-field input:focus, .review-field select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* 校對表格 */
+    .review-table-box {
+      max-height: 380px;
+      overflow-y: auto;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+    }
+    .review-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      font-size: 13px;
+    }
+    .review-table th {
+      background: #f1f5f9;
+      color: var(--gray-700);
+      padding: 8px;
+      position: sticky;
+      top: 0;
+      border-bottom: 2px solid var(--gray-300);
+      z-index: 2;
+    }
+    .review-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .review-table input.score-input {
+      width: 70px;
+      text-align: center;
+      padding: 4px 6px;
+      font-size: 14px;
+      font-weight: bold;
+      border: 1px solid var(--gray-300);
+      border-radius: 4px;
+    }
+    .review-table input.score-input:focus {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+
+    /* 原圖燈箱 Modal */
+    .lightbox-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .lightbox-img-box {
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow: auto;
+      position: relative;
+      background: #222;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .lightbox-img {
+      max-width: 100%;
+      max-height: 80vh;
+      display: block;
+      margin: auto;
+      transition: transform 0.2s ease;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      font-size: 24px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* =========================================================
+       Tab 2: 導師班級主控版樣式
+    ========================================================= */
+    .toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      padding: 14px 20px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--gray-200);
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter-group label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray-600);
+    }
+    .filter-group input[type="date"], .filter-group select {
+      padding: 6px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    /* 學生選擇控制列 */
+    .student-selector-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+    }
+    .student-select {
+      flex: 1;
+      max-width: 320px;
+      padding: 8px 12px;
+      font-size: 15px;
+      font-weight: bold;
+      border: 1px solid #93c5fd;
+      border-radius: 6px;
+      background: white;
+    }
+
+    /* 摘要數值指標卡片網格 */
+    .stat-badge-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-badge {
+      background: white;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .stat-badge-title {
+      font-size: 12px;
+      color: var(--gray-600);
+      margin-bottom: 4px;
+    }
+    .stat-badge-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    /* 2x2 圖表矩陣 (融入 BatchReport) */
+    .chart-grid-2x2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 900px) {
+      .chart-grid-2x2 { grid-template-columns: 1fr; }
+    }
+    .chart-box {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      position: relative;
+      height: 320px;
+    }
+    .chart-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray-700);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chart-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: calc(100% - 28px);
+    }
+
+    /* 成績明細表 */
+    .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      font-size: 13px;
+    }
+    .detail-table th {
+      background: #f1f5f9;
+      color: var(--gray-700);
+      padding: 10px 8px;
+      border-bottom: 2px solid var(--gray-300);
+    }
+    .detail-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-weight: bold;
+    }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 5px solid rgba(255,255,255,0.2);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 友善列印隱藏 */
+    @media print {
+      header, .toolbar-row, .tab-bar, .student-selector-bar, .no-print {
+        display: none !important;
+      }
+      body, main { background: white; padding: 0; }
+      .card { box-shadow: none; border: none; padding: 0; margin-bottom: 20px; }
+      .chart-box { height: 260px !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading 提示遮罩 -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loadingText" style="font-size: 16px;">⏳ 資料載入與運算中，請稍候...</div>
+  </div>
+
+  <!-- 原圖檢視燈箱 Modal -->
+  <div id="lightboxModal" class="lightbox-modal" onclick="closeLightbox(event)">
+    <div class="lightbox-img-box" onclick="event.stopPropagation()">
+      <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+      <img id="lightboxImg" class="lightbox-img" src="" alt="手寫成績單原圖">
+      <div style="text-align:center; margin-top:8px;">
+        <button class="btn btn-secondary" onclick="zoomLightbox(0.2)">🔍 放大</button>
+        <button class="btn btn-secondary" onclick="zoomLightbox(-0.2)">🔍 縮小</button>
+        <button class="btn btn-secondary" onclick="resetLightboxZoom()">↺ 還原</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 頂部 Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🏫</div>
+      <div>
+        <div class="brand-title">教師全功能主控台</div>
+        <div class="brand-subtitle">AI 手寫成績單辨識 ‧ 導師班學業診斷 ‧ 科任跨班分析</div>
+      </div>
+    </div>
+
+    <!-- 分頁導航 Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('import')">
+        <span>📸</span> 匯入成績單 (AI辨識)
+      </button>
+      <button class="tab-btn" onclick="switchTab('tutor')">
+        <span>📊</span> 導師班級主控版
+      </button>
+      <button class="tab-btn" onclick="switchTab('subject')">
+        <span>🔬</span> 科任班級主控版
+      </button>
+    </div>
+
+    <!-- 右側功能按鈕 -->
+    <div class="header-actions">
+      <button class="btn-action" onclick="toggleFullScreen()">🖥️ 全螢幕</button>
+      <button class="btn-action" onclick="window.print()">🖨️ 列印報表</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ==============================================================
+         TAB 1: 匯入成績單功能 (AI 影像辨識與校對匯入)
+    ============================================================== -->
+    <div id="tab-import" class="tab-content active">
+      <!-- 步驟 1: 上傳照片區塊 -->
+      <div class="card">
+        <div class="card-title">
+          <span>📤 手寫成績單照片上傳 (支援多張批量處理)</span>
+        </div>
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon">📷</div>
+          <div style="font-size: 16px; font-weight: bold; color: var(--gray-700);">
+            點擊此處或將手寫成績單照片拖曳到此（支援複數照片上傳）
+          </div>
+          <div class="upload-hint">支援格式：JPG, PNG, HEIC, JPEG ｜ 可同時選取多個檔案，或手機拍照後批次上傳</div>
+          <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
+        </div>
+
+        <!-- 照片預覽清單 -->
+        <div id="fileListContainer" style="display:none; margin-top:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-weight:bold; font-size:14px; color:var(--gray-700);">
+              📂 已選取照片清單 (<span id="selectedCount">0</span> 張)：
+            </span>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" onclick="startOcrRecognition()">🚀 開始 AI 辨識</button>
+              <button class="btn btn-secondary" onclick="clearSelectedFiles()">🧹 清空重選</button>
+            </div>
+          </div>
+          <div class="file-grid" id="fileGrid"></div>
+        </div>
+      </div>
+
+      <!-- 步驟 2: 線上校對與確認匯入區塊 -->
+      <div id="reviewSection" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h2 style="margin:0; font-size:18px; color:var(--gray-800); display:flex; align-items:center; gap:8px;">
+            <span>✏️ 辨識成果校對與資料庫匯入</span>
+            <span style="font-size:13px; font-weight:normal; color:var(--gray-600);">(請檢查班級、科目、範圍與座號分數，確認後存檔)</span>
+          </h2>
+          <button class="btn btn-success" style="padding:10px 20px; font-size:15px;" onclick="saveAllConfirmedScores()">
+            💾 全部確認無誤，匯入試算表
+          </button>
+        </div>
+
+        <div id="reviewCardsContainer"></div>
+
+        <div style="text-align:center; margin-top:24px;">
+          <button class="btn btn-success" style="padding:12px 28px; font-size:16px;" onclick="saveAllConfirmedScores()">
+            💾 確認存檔並匯入試算表 (導師班與科任班)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================================
+         TAB 2: 導師班級主控版 (Class Macro Curve & Student Micro Profile)
+    ============================================================== -->
+    <div id="tab-tutor" class="tab-content">
+      <!-- 篩選列 -->
+      <div class="toolbar-row">
+        <div class="filter-group">
+          <label>📅 統計區間：</label>
+          <input type="date" id="tutorStartDate">
+          <span>~</span>
+          <input type="date" id="tutorEndDate">
+          <button class="btn btn-secondary" onclick="setTutorDateRange('all')">全學期</button>
+          <button class="btn btn-secondary" onclick="setTutorDateRange('4w')">近 4 週</button>
+          <button class="btn btn-secondary" onclick="setTutorDateRange('8w')">近 8 週</button>
+          <button class="btn btn-primary" onclick="loadTutorDashboardData()">🔍 查詢/重整</button>
+        </div>
+        <div>
+          <span id="tutorClassNameLabel" style="font-weight:bold; color:var(--primary); font-size:16px;">導師班總表</span>
+        </div>
+      </div>
+
+      <!-- 區塊 1: 全班各科巨觀學習曲線 (Macro View) -->
+      <div class="card">
+        <div class="card-title">
+          <span>📈 全班各科學習曲線走勢 (各科週平均對比)</span>
+        </div>
+        <div style="height: 340px; position: relative;">
+          <canvas id="classMacroTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 各科指標概況卡片網格 -->
+      <div class="card">
+        <div class="card-title">
+          <span>📊 各科學業成績概況指標 (平均、及格率、標準差與五標)</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="detail-table" id="subjectStatsTable">
+            <thead>
+              <tr>
+                <th>科目</th>
+                <th>測驗次數</th>
+                <th>成績筆數</th>
+                <th>班平均</th>
+                <th>及格率</th>
+                <th>最高 / 最低</th>
+                <th>標準差 (齊次度)</th>
+                <th>頂標 (P88)</th>
+                <th>均標 (P50)</th>
+                <th>底標 (P12)</th>
+              </tr>
+            </thead>
+            <tbody id="subjectStatsTableBody">
+              <tr><td colspan="10">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 區塊 2: 個別學生深度學習診斷 (Micro View - 融入 BatchReport) -->
+      <div class="card">
+        <div class="card-title">
+          <span>🎯 個別學生深度學習歷程診斷 (四象限圖表與五標落點)</span>
+        </div>
+
+        <!-- 學生切換導覽列 -->
+        <div class="student-selector-bar">
+          <label style="font-weight:bold; color:var(--primary-dark);">👤 選擇學生：</label>
+          <select id="studentSelect" class="student-select" onchange="renderSelectedStudentProfile()"></select>
+          <button class="btn btn-secondary" onclick="navigateStudent(-1)">⬅️ 上一位</button>
+          <button class="btn btn-secondary" onclick="navigateStudent(1)">下一位 ➡️</button>
+        </div>
+
+        <!-- 學生個人指標摘要卡 -->
+        <div class="stat-badge-grid">
+          <div class="stat-badge">
+            <div class="stat-badge-title">座號 / 姓名</div>
+            <div class="stat-badge-value" id="badgeStudentInfo" style="font-size:20px;">-</div>
+          </div>
+          <div class="stat-badge">
+            <div class="stat-badge-title">區間加權平均</div>
+            <div class="stat-badge-value" id="badgeWeightedAvg">-</div>
+          </div>
+          <div class="stat-badge">
+            <div class="stat-badge-title">全班區間排名</div>
+            <div class="stat-badge-value" id="badgeRank" style="color:#d97706;">-</div>
+          </div>
+          <div class="stat-badge">
+            <div class="stat-badge-title">評量科目數</div>
+            <div class="stat-badge-value" id="badgeSubjectCount" style="color:#10b981;">-</div>
+          </div>
+        </div>
+
+        <!-- 2x2 四大圖表矩陣 (融入 BatchReport) -->
+        <div class="chart-grid-2x2">
+          <!-- 圖 1: 原始分數能力雷達圖 -->
+          <div class="chart-box">
+            <div class="chart-title">📊 各科原始平均能力雷達 (100分制)</div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="studentRawRadarChart"></canvas>
+            </div>
+          </div>
+
+          <!-- 圖 2: 原始分數週走勢圖 -->
+          <div class="chart-box">
+            <div class="chart-title">📈 各科週成績起伏走勢 (100分制)</div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="studentRawTrendChart"></canvas>
+            </div>
+          </div>
+
+          <!-- 圖 3: 五標相對能力雷達圖 -->
+          <div class="chart-box">
+            <div class="chart-title">🎯 五標相對能力落點雷達 (0-6階梯刻度)</div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="studentFiveTierRadarChart"></canvas>
+            </div>
+          </div>
+
+          <!-- 圖 4: 五標相對週走勢圖 -->
+          <div class="chart-box">
+            <div class="chart-title">📉 五標相對進退週走勢 (0-6階梯刻度)</div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="studentFiveTierTrendChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 成績明細表 -->
+        <div class="card-title" style="margin-top:20px;">
+          <span>📝 該生測驗詳細成績清單</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="detail-table" id="studentDetailTable">
+            <thead>
+              <tr>
+                <th>科目</th>
+                <th>測驗範圍</th>
+                <th>個人得分</th>
+                <th>該次班平均</th>
+                <th>科目總平均</th>
+                <th>科目班排名</th>
+              </tr>
+            </thead>
+            <tbody id="studentDetailTableBody">
+              <tr><td colspan="6">請選擇學生查看成績明細</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================================
+         TAB 3: 科任班級主控版 (直接整合現有 SubjectDashboard 功能)
+    ============================================================== -->
+    <div id="tab-subject" class="tab-content">
+      <div class="toolbar-row">
+        <div class="filter-group">
+          <label>👥 選擇跨班群組：</label>
+          <select id="subjectGroupSelect" class="student-select" style="max-width:320px;" onchange="loadSubjectGroupData()"></select>
+          <button class="btn btn-primary" onclick="loadSubjectGroupData()">🔄 重新載入</button>
+          <button class="btn btn-success" onclick="generateSubjectSheet()">📑 產出分析總表分頁</button>
+        </div>
+      </div>
+
+      <!-- 跨班指標對照表 -->
+      <div class="card">
+        <div class="card-title">
+          <span>📊 跨班指標對照表 (Macro Matrix)</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="detail-table" id="crossClassTable">
+            <thead>
+              <tr>
+                <th>班級</th>
+                <th>應考人數</th>
+                <th>班平均</th>
+                <th>及格率</th>
+                <th>標準差 (齊次度)</th>
+                <th>頂標率 (P88)</th>
+                <th>底標率 (P12)</th>
+              </tr>
+            </thead>
+            <tbody id="crossClassTableBody">
+              <tr><td colspan="7">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 視覺化圖表區 -->
+      <div class="card">
+        <div class="card-title">
+          <span>📈 跨班學業走勢與能力結構分佈</span>
+        </div>
+        <div class="chart-grid-2x2">
+          <div class="chart-box" style="height:360px;">
+            <div class="chart-title">📈 跨班加權平均走勢 (Multi-Line Chart)</div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="subjectCrossTrendChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-box" style="height:360px;">
+            <div class="chart-title">📊 班級五標能力結構分佈 (Stacked Bar Chart)</div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="subjectTierStackChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自動預警名單 -->
+      <div class="card">
+        <div class="card-title">
+          <span>⚠️ 需關注學生自動標記名單 (扶弱 ‧ 輔導 ‧ 拔尖)</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="detail-table" id="attentionTable">
+            <thead>
+              <tr>
+                <th>班級</th>
+                <th>座號</th>
+                <th>姓名</th>
+                <th>標記類型</th>
+                <th>最新成績</th>
+                <th>觸發診斷原因</th>
+              </tr>
+            </thead>
+            <tbody id="attentionTableBody">
+              <tr><td colspan="6">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ==============================================================
+       全域狀態管理
+    ============================================================== */
+    let systemMeta = {
+      mainClassName: "",
+      classes: [],
+      subjects: [],
+      evalTypes: [],
+      tutorStudents: []
+    };
+
+    // Tab 1 狀態
+    const uploadedImages = []; // [{ file, name, mimeType, base64, status, recognizedData }]
+    let currentLightboxZoom = 1.0;
+
+    // Tab 2 狀態
+    let tutorDashboardData = null;
+    let currentStudentIndex = 0;
+    const tutorCharts = {
+      macroTrend: null,
+      rawRadar: null,
+      rawTrend: null,
+      fiveTierRadar: null,
+      fiveTierTrend: null
+    };
+
+    // Tab 3 狀態
+    const subjectCharts = {
+      crossTrend: null,
+      tierStack: null
+    };
+
+    // 5標刻度輔助格式化
+    const fiveTierTicks = {
+      stepSize: 1,
+      callback: function(val) {
+        const labels = ['底標下', '底標', '後標', '均標', '前標', '頂標', '滿分'];
+        return labels[val] !== undefined ? labels[val] : val;
+      }
+    };
+
+    /* ==============================================================
+       頁面初始化
+    ============================================================== */
+    window.onload = function() {
+      // 綁定拖曳事件
+      initUploadZoneEvents();
+
+      // 設定預設日期
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      document.getElementById('tutorStartDate').value = monthAgo;
+      document.getElementById('tutorEndDate').value = todayStr;
+
+      // 載入系統基本元資料
+      showLoading("正在載入系統設定與班級清單...");
+      google.script.run
+        .withSuccessHandler(meta => {
+          hideLoading();
+          if (meta) {
+            systemMeta = meta;
+            if (meta.mainClassName) {
+              document.getElementById('tutorClassNameLabel').innerText = `導師班：${meta.mainClassName}`;
+            }
+          }
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          console.error("載入系統元資料失敗:", err);
+        })
+        .getAvailableClassesAndSubjects();
+    };
+
+    function showLoading(msg) {
+      document.getElementById('loadingText').innerText = msg || "⏳ 資料載入中，請稍候...";
+      document.getElementById('loadingOverlay').style.display = "flex";
+    }
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = "none";
+    }
+
+    /* Tab 切換 */
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      if (tabId === 'import') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('tab-import').classList.add('active');
+      } else if (tabId === 'tutor') {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('tab-tutor').classList.add('active');
+        if (!tutorDashboardData) loadTutorDashboardData();
+      } else if (tabId === 'subject') {
+        document.querySelectorAll('.tab-btn')[2].classList.add('active');
+        document.getElementById('tab-subject').classList.add('active');
+        initSubjectTab();
+      }
+    }
+
+    /* 全螢幕切換 */
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => alert("全螢幕受限: " + err.message));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    /* ==============================================================
+       TAB 1: 影像辨識與校對功能
+    ============================================================== */
+    function initUploadZoneEvents() {
+      const zone = document.getElementById('uploadZone');
+      ['dragenter', 'dragover'].forEach(name => {
+        zone.addEventListener(name, e => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach(name => {
+        zone.addEventListener(name, e => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.remove('dragover');
+        });
+      });
+      zone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          processFiles(files);
+        }
+      });
+    }
+
+    function handleFileSelect(event) {
+      const files = event.target.files;
+      if (files && files.length > 0) {
+        processFiles(files);
+      }
+    }
+
+    function processFiles(files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/') && !file.name.toLowerCase().endsWith('.heic')) {
+          continue;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          uploadedImages.push({
+            file: file,
+            name: file.name,
+            mimeType: file.type || "image/jpeg",
+            base64: e.target.result,
+            status: "pending",
+            recognizedData: null
+          });
+          renderFileGrid();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function renderFileGrid() {
+      const container = document.getElementById('fileListContainer');
+      const grid = document.getElementById('fileGrid');
+      document.getElementById('selectedCount').innerText = uploadedImages.length;
+
+      if (uploadedImages.length === 0) {
+        container.style.display = "none";
+        grid.innerHTML = "";
+        return;
+      }
+
+      container.style.display = "block";
+      grid.innerHTML = "";
+
+      uploadedImages.forEach((img, idx) => {
+        const card = document.createElement('div');
+        card.className = "file-card";
+
+        let badgeClass = "status-pending";
+        let badgeText = "⏳ 待辨識";
+        if (img.status === "loading") { badgeClass = "status-loading"; badgeText = "🔄 辨識中..."; }
+        else if (img.status === "done") { badgeClass = "status-done"; badgeText = "✅ 辨識完成"; }
+        else if (img.status === "fail") { badgeClass = "status-fail"; badgeText = "❌ 失敗"; }
+
+        card.innerHTML = `
+          <button class="file-remove-btn" onclick="removeImage(${idx})">✕</button>
+          <img class="file-thumb" src="${img.base64}" alt="縮圖">
+          <div class="file-name" title="${img.name}">${img.name}</div>
+          <div class="file-status-badge ${badgeClass}">${badgeText}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function removeImage(idx) {
+      uploadedImages.splice(idx, 1);
+      renderFileGrid();
+      if (uploadedImages.length === 0) {
+        document.getElementById('reviewSection').style.display = "none";
+      }
+    }
+
+    function clearSelectedFiles() {
+      uploadedImages.length = 0;
+      renderFileGrid();
+      document.getElementById('reviewSection').style.display = "none";
+      document.getElementById('reviewCardsContainer').innerHTML = "";
+    }
+
+    /* 執行 AI 辨識 */
+    function startOcrRecognition() {
+      if (uploadedImages.length === 0) {
+        alert("請先上傳手寫成績單照片！");
+        return;
+      }
+
+      showLoading(`🤖 AI 正在辨識 ${uploadedImages.length} 張成績單照片，請稍候...`);
+
+      // 標註為 loading
+      uploadedImages.forEach(img => img.status = "loading");
+      renderFileGrid();
+
+      // 打包 base64 資料
+      const payload = uploadedImages.map((img, idx) => ({
+        index: idx,
+        name: img.name,
+        mimeType: img.mimeType,
+        base64: img.base64
+      }));
+
+      google.script.run
+        .withSuccessHandler(results => {
+          hideLoading();
+          if (!results || results.length === 0) {
+            alert("⚠️ API 未回傳辨識結果！");
+            return;
+          }
+
+          results.forEach((res, idx) => {
+            if (uploadedImages[idx]) {
+              uploadedImages[idx].status = res.recognizedSuccess ? "done" : "fail";
+              uploadedImages[idx].recognizedData = res;
+            }
+          });
+          renderFileGrid();
+          renderReviewCards(results);
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          uploadedImages.forEach(img => img.status = "fail");
+          renderFileGrid();
+          alert("辨識過程發生錯誤：" + err.message);
+        })
+        .recognizeUploadedImages(payload);
+    }
+
+    /* 渲染可編輯校對卡片 */
+    function renderReviewCards(results) {
+      const container = document.getElementById('reviewCardsContainer');
+      container.innerHTML = "";
+      document.getElementById('reviewSection').style.display = "block";
+
+      const classesOptions = systemMeta.classes.map(c => `<option value="${c}">${c}</option>`).join("");
+      const subjectsOptions = systemMeta.subjects.map(s => `<option value="${s}">${s}</option>`).join("");
+      const evalOptions = systemMeta.evalTypes.map(t => `<option value="${t}">${t}</option>`).join("");
+
+      results.forEach((res, rIdx) => {
+        const card = document.createElement('div');
+        card.className = "review-card";
+        card.id = `reviewCard-${rIdx}`;
+
+        const isSuccess = res.recognizedSuccess;
+        const currentClass = res.className || systemMeta.mainClassName || "";
+        const currentSubj = res.subject || "理化";
+        const currentType = res.type || "小考";
+        const currentRange = res.examRange || "無範圍";
+        const currentDate = res.examDate || new Date().toISOString().split('T')[0];
+
+        // 建立成績表格列 HTML
+        let tableRows = "";
+        const scores = res.scores || [];
+        if (scores.length === 0) {
+          // 預設建立座號 1~30 空白列
+          for (let st = 1; st <= 30; st++) {
+            tableRows += `
+              <tr data-seat="${st}">
+                <td>${st}</td>
+                <td><input type="text" class="review-name-input" value="座號${st}" style="width:90px; text-align:center;"></td>
+                <td><input type="number" class="score-input" value="" placeholder="-" onkeydown="handleScoreInputKey(event, ${rIdx}, ${st})"></td>
+                <td><button class="btn btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="removeScoreRow(this)">✕</button></td>
+              </tr>
+            `;
+          }
+        } else {
+          scores.forEach(s => {
+            tableRows += `
+              <tr data-seat="${s.seat}">
+                <td>${s.seat}</td>
+                <td><input type="text" class="review-name-input" value="${s.name || '座號' + s.seat}" style="width:90px; text-align:center;"></td>
+                <td><input type="number" class="score-input" value="${s.score !== null ? s.score : ''}" placeholder="-" onkeydown="handleScoreInputKey(event, ${rIdx}, ${s.seat})"></td>
+                <td><button class="btn btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="removeScoreRow(this)">✕</button></td>
+              </tr>
+            `;
+          });
+        }
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="font-weight:bold; font-size:16px; color:var(--gray-800); display:flex; align-items:center; gap:8px;">
+              <span>📄 照片 #${rIdx + 1}：${res.fileName}</span>
+              ${isSuccess ? '<span class="file-status-badge status-done">辨識成功</span>' : '<span class="file-status-badge status-fail">辨識異常</span>'}
+            </div>
+            <div>
+              <button class="btn btn-secondary" onclick="openLightbox(${rIdx})">🔍 查看/對照原圖</button>
+            </div>
+          </div>
+
+          <!-- 表頭資訊設定 -->
+          <div class="review-header">
+            <div class="review-field">
+              <label>班級名稱：</label>
+              <input type="text" id="reviewClass-${rIdx}" value="${currentClass}" list="classList-${rIdx}" style="width:110px;">
+              <datalist id="classList-${rIdx}">${classesOptions}</datalist>
+            </div>
+            <div class="review-field">
+              <label>考試科目：</label>
+              <input type="text" id="reviewSubj-${rIdx}" value="${currentSubj}" list="subjList-${rIdx}" style="width:110px;">
+              <datalist id="subjList-${rIdx}">${subjectsOptions}</datalist>
+            </div>
+            <div class="review-field">
+              <label>評量類型：</label>
+              <input type="text" id="reviewType-${rIdx}" value="${currentType}" list="typeList-${rIdx}" style="width:110px;">
+              <datalist id="typeList-${rIdx}">${evalOptions}</datalist>
+            </div>
+            <div class="review-field">
+              <label>測驗範圍：</label>
+              <input type="text" id="reviewRange-${rIdx}" value="${currentRange}" placeholder="例如：第一章" style="width:160px;">
+            </div>
+            <div class="review-field">
+              <label>測驗日期：</label>
+              <input type="date" id="reviewDate-${rIdx}" value="${currentDate}">
+            </div>
+          </div>
+
+          <!-- 成績表格與小計 -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:13px; font-weight:bold; color:var(--gray-700);">📊 座號與分數清單 (可直接編輯修改，按 Enter 自動跳下一座號)：</span>
+            <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="addScoreRow(${rIdx})">➕ 新增座號列</button>
+          </div>
+
+          <div class="review-table-box">
+            <table class="review-table" id="reviewTable-${rIdx}">
+              <thead>
+                <tr>
+                  <th style="width:15%;">座號</th>
+                  <th style="width:30%;">學生姓名</th>
+                  <th style="width:35%;">成績分數</th>
+                  <th style="width:20%;">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function removeScoreRow(btn) {
+      const tr = btn.closest('tr');
+      if (tr) tr.remove();
+    }
+
+    function addScoreRow(rIdx) {
+      const table = document.getElementById(`reviewTable-${rIdx}`);
+      const tbody = table.querySelector('tbody');
+      const rows = tbody.querySelectorAll('tr');
+      const nextSeat = rows.length + 1;
+
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-seat', nextSeat);
+      tr.innerHTML = `
+        <td>${nextSeat}</td>
+        <td><input type="text" class="review-name-input" value="座號${nextSeat}" style="width:90px; text-align:center;"></td>
+        <td><input type="number" class="score-input" value="" placeholder="-" onkeydown="handleScoreInputKey(event, ${rIdx}, ${nextSeat})"></td>
+        <td><button class="btn btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="removeScoreRow(this)">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+      tr.querySelector('.score-input').focus();
+    }
+
+    /* 支援鍵盤快速鍵入 */
+    function handleScoreInputKey(e, rIdx, seat) {
+      if (e.key === "Enter" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const table = document.getElementById(`reviewTable-${rIdx}`);
+        const inputs = Array.from(table.querySelectorAll('.score-input'));
+        const currIndex = inputs.indexOf(e.target);
+        if (currIndex !== -1 && currIndex + 1 < inputs.length) {
+          inputs[currIndex + 1].focus();
+          inputs[currIndex + 1].select();
+        } else if (currIndex === inputs.length - 1) {
+          addScoreRow(rIdx);
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const table = document.getElementById(`reviewTable-${rIdx}`);
+        const inputs = Array.from(table.querySelectorAll('.score-input'));
+        const currIndex = inputs.indexOf(e.target);
+        if (currIndex > 0) {
+          inputs[currIndex - 1].focus();
+          inputs[currIndex - 1].select();
+        }
+      }
+    }
+
+    /* 原圖燈箱預覽 */
+    function openLightbox(rIdx) {
+      if (uploadedImages[rIdx] && uploadedImages[rIdx].base64) {
+        const img = document.getElementById('lightboxImg');
+        img.src = uploadedImages[rIdx].base64;
+        currentLightboxZoom = 1.0;
+        img.style.transform = `scale(${currentLightboxZoom})`;
+        document.getElementById('lightboxModal').style.display = "flex";
+      }
+    }
+    function closeLightbox(e) {
+      document.getElementById('lightboxModal').style.display = "none";
+    }
+    function zoomLightbox(delta) {
+      currentLightboxZoom = Math.max(0.4, Math.min(3.0, currentLightboxZoom + delta));
+      document.getElementById('lightboxImg').style.transform = `scale(${currentLightboxZoom})`;
+    }
+    function resetLightboxZoom() {
+      currentLightboxZoom = 1.0;
+      document.getElementById('lightboxImg').style.transform = `scale(1)`;
+    }
+
+    /* 存檔所有確認成績 */
+    function saveAllConfirmedScores() {
+      const cards = document.querySelectorAll('.review-card');
+      if (cards.length === 0) {
+        alert("尚無校對卡片可供匯入！");
+        return;
+      }
+
+      const confirmedList = [];
+      cards.forEach((card, idx) => {
+        const cCode = document.getElementById(`reviewClass-${idx}`).value.trim();
+        const subj = document.getElementById(`reviewSubj-${idx}`).value.trim();
+        const type = document.getElementById(`reviewType-${idx}`).value.trim();
+        const range = document.getElementById(`reviewRange-${idx}`).value.trim();
+        const date = document.getElementById(`reviewDate-${idx}`).value.trim();
+
+        const table = document.getElementById(`reviewTable-${idx}`);
+        const rows = table.querySelectorAll('tbody tr');
+        const scores = [];
+
+        rows.forEach(r => {
+          const seatVal = parseInt(r.getAttribute('data-seat') || r.children[0].innerText.trim(), 10);
+          const scoreInput = r.querySelector('.score-input');
+          const val = scoreInput ? scoreInput.value.trim() : "";
+          if (val !== "" && !isNaN(Number(val))) {
+            scores.push({
+              seat: seatVal,
+              score: Number(val)
+            });
+          }
+        });
+
+        confirmedList.push({
+          index: idx,
+          className: cCode,
+          subject: subj,
+          type: type,
+          examRange: range,
+          examDate: date,
+          scores: scores,
+          fileName: uploadedImages[idx] ? uploadedImages[idx].name : `scores_${idx}.jpg`,
+          imageBase64: uploadedImages[idx] ? uploadedImages[idx].base64 : ""
+        });
+      });
+
+      if (!confirm(`確定將 ${confirmedList.length} 份成績單寫入試算表分頁（導師總表與專任分頁）嗎？`)) {
+        return;
+      }
+
+      showLoading("💾 正在寫入試算表並備份照片至 Google Drive，請稍候...");
+      google.script.run
+        .withSuccessHandler(res => {
+          hideLoading();
+          if (res && res.success) {
+            alert(`🎉 匯入成功！\n處理數量：${res.successCount} / ${res.totalProcessed}\n\n` + res.logs.join("\n"));
+            clearSelectedFiles();
+          } else {
+            alert("⚠️ 匯入完成，但部分項目有警告：\n" + (res.logs ? res.logs.join("\n") : "未知狀態"));
+          }
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("❌ 儲存失敗：" + err.message);
+        })
+        .saveConfirmedOcrScores(confirmedList);
+    }
+
+    /* ==============================================================
+       TAB 2: 導師班級主控版功能 (融入 BatchReport 圖表)
+    ============================================================== */
+    function setTutorDateRange(type) {
+      const now = new Date();
+      const endStr = now.toISOString().split('T')[0];
+      let startStr = "";
+
+      if (type === 'all') {
+        startStr = "";
+      } else if (type === '4w') {
+        const d = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
+        startStr = d.toISOString().split('T')[0];
+      } else if (type === '8w') {
+        const d = new Date(now.getTime() - 56 * 24 * 60 * 60 * 1000);
+        startStr = d.toISOString().split('T')[0];
+      }
+      document.getElementById('tutorStartDate').value = startStr;
+      document.getElementById('tutorEndDate').value = endStr;
+      loadTutorDashboardData();
+    }
+
+    function loadTutorDashboardData() {
+      const start = document.getElementById('tutorStartDate').value;
+      const end = document.getElementById('tutorEndDate').value;
+
+      showLoading("📊 正在運算導師班全科學習曲線與個別學生診斷數據...");
+      google.script.run
+        .withSuccessHandler(data => {
+          hideLoading();
+          if (!data || !data.reports || data.reports.length === 0) {
+            alert("⚠️ 所選區間內無成績紀錄！");
+            return;
+          }
+          tutorDashboardData = data;
+          if (data.className) {
+            document.getElementById('tutorClassNameLabel').innerText = `導師班：${data.className}`;
+          }
+
+          // 1. 繪製全班巨觀各科走勢圖
+          renderClassMacroTrend(data.classMacroTrend);
+
+          // 2. 渲染各科概況表格
+          renderSubjectStatsTable(data.subjectStatsList);
+
+          // 3. 填入學生下拉選單
+          renderStudentDropdown(data.studentList);
+
+          // 4. 渲染第一位學生微觀檔案
+          currentStudentIndex = 0;
+          renderSelectedStudentProfile();
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("讀取導師班數據失敗：" + err.message);
+        })
+        .getTutorDashboardData(start, end);
+    }
+
+    /* 繪製班級各科學習曲線 (Macro View) */
+    function renderClassMacroTrend(trendData) {
+      const ctx = document.getElementById('classMacroTrendChart');
+      if (!ctx || !trendData) return;
+
+      if (tutorCharts.macroTrend) {
+        tutorCharts.macroTrend.destroy();
+      }
+
+      tutorCharts.macroTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: trendData.weeks || [],
+          datasets: trendData.datasets || []
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            y: { min: 0, max: 100, title: { display: true, text: '班平均分數 (100分制)' } },
+            x: { title: { display: true, text: '週次 / 考試週期' } }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 14 } },
+            tooltip: {
+              callbacks: {
+                label: function(c) {
+                  return ` ${c.dataset.label} 班平均: ${c.parsed.y !== null ? c.parsed.y + '分' : '無考試'}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    /* 渲染各科指標表格 */
+    function renderSubjectStatsTable(list) {
+      const tbody = document.getElementById('subjectStatsTableBody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10">無評量數據</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(item => `
+        <tr>
+          <td style="font-weight:bold; color:var(--primary);">${item.subject}</td>
+          <td>${item.examCount} 次</td>
+          <td>${item.totalScoresCount} 筆</td>
+          <td style="font-weight:bold;">${item.average}</td>
+          <td>${item.passRate}%</td>
+          <td>${item.maxScore} / ${item.minScore}</td>
+          <td>${item.stdDev}</td>
+          <td style="color:#d97706; font-weight:bold;">${item.fiveTiers.top}</td>
+          <td>${item.fiveTiers.median}</td>
+          <td style="color:#dc2626;">${item.fiveTiers.bottom}</td>
+        </tr>
+      `).join('');
+    }
+
+    /* 學生下拉選單 */
+    function renderStudentDropdown(list) {
+      const select = document.getElementById('studentSelect');
+      select.innerHTML = "";
+      if (!list || list.length === 0) return;
+
+      list.forEach((st, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.innerText = `${st.seat} 號 ${st.name} ｜ 加權平均: ${st.weightedAvg} (全班第 ${st.rank} 名)`;
+        select.appendChild(opt);
+      });
+    }
+
+    function navigateStudent(direction) {
+      if (!tutorDashboardData || !tutorDashboardData.reports) return;
+      const count = tutorDashboardData.reports.length;
+      currentStudentIndex = (currentStudentIndex + direction + count) % count;
+      document.getElementById('studentSelect').value = currentStudentIndex;
+      renderSelectedStudentProfile();
+    }
+
+    /* 渲染個別學生微觀深度診斷 (融入 BatchReport 四大圖表與明細) */
+    function renderSelectedStudentProfile() {
+      if (!tutorDashboardData || !tutorDashboardData.reports) return;
+      const select = document.getElementById('studentSelect');
+      currentStudentIndex = parseInt(select.value, 10) || 0;
+      const rpt = tutorDashboardData.reports[currentStudentIndex];
+      if (!rpt) return;
+
+      // 1. 填入徽章數值
+      document.getElementById('badgeStudentInfo').innerText = `${rpt.info.seat} 號 ${rpt.info.name}`;
+      document.getElementById('badgeWeightedAvg').innerText = `${rpt.summary.weightedAvg} 分`;
+      document.getElementById('badgeRank').innerText = `第 ${rpt.summary.rank} 名`;
+      document.getElementById('badgeSubjectCount').innerText = `${rpt.subjectDetails ? rpt.subjectDetails.length : 0} 科`;
+
+      const subjLabels = [];
+      const subjAvgs = [];
+      if (rpt.subjectDetails) {
+        rpt.subjectDetails.forEach(s => {
+          subjLabels.push(s.subject);
+          subjAvgs.push(s.subjectAvg);
+        });
+      }
+
+      // 2. 圖表 1: 原始分數能力雷達圖
+      const ctxRawRadar = document.getElementById('studentRawRadarChart');
+      if (tutorCharts.rawRadar) tutorCharts.rawRadar.destroy();
+      let rLabels = [...subjLabels];
+      let rData = [...subjAvgs];
+      if (rLabels.length === 2) { rLabels.push(''); rData.push(0); }
+
+      tutorCharts.rawRadar = new Chart(ctxRawRadar, {
+        type: 'radar',
+        data: {
+          labels: rLabels,
+          datasets: [{
+            label: '個人科目平均',
+            data: rData,
+            backgroundColor: 'rgba(37, 99, 235, 0.2)',
+            borderColor: '#2563eb',
+            pointBackgroundColor: '#2563eb'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { r: { min: 0, max: 100 } },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // 3. 圖表 2: 原始分數週走勢圖
+      const ctxRawTrend = document.getElementById('studentRawTrendChart');
+      if (tutorCharts.rawTrend) tutorCharts.rawTrend.destroy();
+      tutorCharts.rawTrend = new Chart(ctxRawTrend, {
+        type: 'line',
+        data: rpt.weeklyChart || { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } },
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+        }
+      });
+
+      // 4. 圖表 3: 五標相對能力雷達圖 (0-6 階梯)
+      const ctxFiveTierRadar = document.getElementById('studentFiveTierRadarChart');
+      if (tutorCharts.fiveTierRadar) tutorCharts.fiveTierRadar.destroy();
+      let ftRLabels = [...(rpt.fiveTierRadarChart?.labels || [])];
+      let ftRData = [...(rpt.fiveTierRadarChart?.studentData || [])];
+      let ftRBench = [...(rpt.fiveTierRadarChart?.benchmarkData || [])];
+      if (ftRLabels.length === 2) { ftRLabels.push(''); ftRData.push(0); ftRBench.push(3); }
+
+      tutorCharts.fiveTierRadar = new Chart(ctxFiveTierRadar, {
+        type: 'radar',
+        data: {
+          labels: ftRLabels,
+          datasets: [
+            {
+              label: '個人落點',
+              data: ftRData,
+              backgroundColor: 'rgba(245, 158, 11, 0.25)',
+              borderColor: '#f59e0b',
+              pointBackgroundColor: '#f59e0b'
+            },
+            {
+              label: '均標基準 (3.0)',
+              data: ftRBench,
+              borderColor: '#94a3b8',
+              borderDash: [4, 4],
+              fill: false,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0, max: 6,
+              ticks: fiveTierTicks
+            }
+          },
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+        }
+      });
+
+      // 5. 圖表 4: 五標相對週走勢圖 (0-6 階梯)
+      const ctxFiveTierTrend = document.getElementById('studentFiveTierTrendChart');
+      if (tutorCharts.fiveTierTrend) tutorCharts.fiveTierTrend.destroy();
+      tutorCharts.fiveTierTrend = new Chart(ctxFiveTierTrend, {
+        type: 'line',
+        data: rpt.fiveTierTrendChart || { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0, max: 6,
+              ticks: fiveTierTicks
+            }
+          },
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+        }
+      });
+
+      // 6. 填寫學生成績明細表
+      const tbody = document.getElementById('studentDetailTableBody');
+      let tableHtml = "";
+      if (rpt.subjectDetails && rpt.subjectDetails.length > 0) {
+        rpt.subjectDetails.forEach(sd => {
+          const exams = sd.exams || [];
+          const rowSpan = exams.length > 0 ? exams.length : 1;
+          if (exams.length === 0) {
+            tableHtml += `
+              <tr>
+                <td style="font-weight:bold; background:#fafafa;">${sd.subject}</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td style="font-weight:bold;">${sd.subjectAvg}</td>
+                <td>第 ${sd.subjectRank} 名</td>
+              </tr>
+            `;
+          } else {
+            tableHtml += `
+              <tr>
+                <td rowspan="${rowSpan}" style="font-weight:bold; vertical-align:middle; background:#fafafa;">${sd.subject}</td>
+                <td>${exams[0].range || '-'}</td>
+                <td><strong>${exams[0].score}</strong></td>
+                <td>${exams[0].classAvg}</td>
+                <td rowspan="${rowSpan}" style="font-weight:bold; vertical-align:middle;">${sd.subjectAvg}</td>
+                <td rowspan="${rowSpan}" style="vertical-align:middle;">第 ${sd.subjectRank} 名</td>
+              </tr>
+            `;
+            for (let eIdx = 1; eIdx < exams.length; eIdx++) {
+              tableHtml += `
+                <tr>
+                  <td>${exams[eIdx].range || '-'}</td>
+                  <td><strong>${exams[eIdx].score}</strong></td>
+                  <td>${exams[eIdx].classAvg}</td>
+                </tr>
+              `;
+            }
+          }
+        });
+      } else {
+        tableHtml = '<tr><td colspan="6">該生在選取區間內無成績紀錄</td></tr>';
+      }
+      tbody.innerHTML = tableHtml;
+    }
+
+    /* ==============================================================
+       TAB 3: 科任班級主控版功能 (整合 SubjectDashboard)
+    ============================================================== */
+    function initSubjectTab() {
+      const select = document.getElementById('subjectGroupSelect');
+      if (select.children.length > 0) return; // 已載入過
+
+      showLoading("正在載入科任班級跨班群組...");
+      google.script.run
+        .withSuccessHandler(groups => {
+          hideLoading();
+          select.innerHTML = "";
+          if (!groups || groups.length === 0) {
+            select.innerHTML = "<option value=''>無符合格式的科任班級</option>";
+            alert("⚠️ 系統中尚未偵測到符合五碼格式的科任分頁（例如：101理化、102理化）！");
+            return;
+          }
+          groups.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.groupKey;
+            opt.innerText = `${g.displayName} (共 ${g.classes.length} 班)`;
+            select.appendChild(opt);
+          });
+          loadSubjectGroupData();
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("載入科任群組失敗：" + err.message);
+        })
+        .getSubjectClassGroups();
+    }
+
+    function loadSubjectGroupData() {
+      const select = document.getElementById('subjectGroupSelect');
+      const groupKey = select.value;
+      if (!groupKey) return;
+
+      showLoading("正在運算科任跨班矩陣與自動預警標記...");
+      google.script.run
+        .withSuccessHandler(data => {
+          hideLoading();
+          if (!data || !data.classes || data.classes.length === 0) {
+            alert("該群組無有效跨班數據！");
+            return;
+          }
+
+          // 1. 跨班指標表格
+          const tBody = document.getElementById('crossClassTableBody');
+          tBody.innerHTML = data.classes.map(c => `
+            <tr>
+              <td style="font-weight:bold; color:var(--primary);">${c.className}</td>
+              <td>${c.totalStudents} 人</td>
+              <td style="font-weight:bold;">${c.mean}</td>
+              <td>${c.passRate}%</td>
+              <td>${c.stdDev}</td>
+              <td style="color:#d97706; font-weight:bold;">${c.p88Rate}%</td>
+              <td style="color:#dc2626;">${c.p12Rate}%</td>
+            </tr>
+          `).join('');
+
+          // 2. 跨班走勢圖
+          renderCrossTrendChart(data.weeklyTrendChart);
+
+          // 3. 堆疊圖
+          renderTierStackChart(data.tierStackedChart);
+
+          // 4. 預警關注名單
+          renderAttentionTable(data.attentionStudents);
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("載入科任數據失敗：" + err.message);
+        })
+        .getCrossClassAnalytics(groupKey);
+    }
+
+    function renderCrossTrendChart(chartData) {
+      const ctx = document.getElementById('subjectCrossTrendChart');
+      if (subjectCharts.crossTrend) subjectCharts.crossTrend.destroy();
+      subjectCharts.crossTrend = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } },
+          plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } }
+        }
+      });
+    }
+
+    function renderTierStackChart(chartData) {
+      const ctx = document.getElementById('subjectTierStackChart');
+      if (subjectCharts.tierStack) subjectCharts.tierStack.destroy();
+      subjectCharts.tierStack = new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, max: 100, title: { display: true, text: '比例 (%)' } }
+          },
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+        }
+      });
+    }
+
+    function renderAttentionTable(list) {
+      const tbody = document.getElementById('attentionTableBody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#10b981; font-weight:bold;">🎉 全員表現穩定，目前無觸發預警之學生！</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(st => `
+        <tr>
+          <td><strong>${st.className}</strong></td>
+          <td>${st.seat}</td>
+          <td>${st.name}</td>
+          <td><span class="file-status-badge ${st.typeBadgeClass || 'status-pending'}">${st.typeText || st.type}</span></td>
+          <td><strong>${st.latestScore !== undefined ? st.latestScore : '-'}</strong></td>
+          <td style="text-align:left; color:#b91c1c;">${st.reason}</td>
+        </tr>
+      `).join('');
+    }
+
+    function generateSubjectSheet() {
+      const groupKey = document.getElementById('subjectGroupSelect').value;
+      if (!groupKey) return alert("請先選擇群組！");
+      showLoading("正在產出科任跨班分析總表分頁...");
+      google.script.run
+        .withSuccessHandler(msg => {
+          hideLoading();
+          alert(msg);
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("產出失敗：" + err.message);
+        })
+        .generateSubjectClassCrossAnalyticsSheet(groupKey);
+    }
+  </script>
+</body>
+</html>
