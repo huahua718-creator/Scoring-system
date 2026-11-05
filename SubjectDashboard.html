@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <!-- 接收 GAS 伺服端樣板參數 -->
+  <script type="application/json" id="envConfig">
+    {
+      "isModalDialog": <?= typeof isModalDialog !== 'undefined' && isModalDialog ? true : false ?>
+    }
+  </script>
   <base target="_top">
   <meta charset="utf-8">
   <title>科任教師跨班分析儀表板</title>
@@ -798,8 +804,19 @@
     const PIN_SESSION_KEY = "teacher_hub_pin_verified_v1";
 
     window.onload = function() {
-      // 檢查是否已在同 session 通過驗證
-      if (sessionStorage.getItem(PIN_SESSION_KEY) === "true") {
+      let isModal = false;
+      try {
+        const envElem = document.getElementById('envConfig');
+        if (envElem && envElem.textContent.trim()) {
+          const cfg = JSON.parse(envElem.textContent);
+          isModal = !!cfg.isModalDialog;
+        }
+      } catch (e) {
+        console.warn("無法解析 envConfig:", e);
+      }
+
+      // 若由試算表對話框開啟，或已在同一 Session 通過驗證，則直接解鎖免輸 PIN 碼
+      if (isModal || sessionStorage.getItem(PIN_SESSION_KEY) === "true") {
         unlockSubjectApp();
       } else {
         document.getElementById('pinAuthOverlay').style.display = "flex";

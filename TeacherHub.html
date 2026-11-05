@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <!-- 接收 GAS 伺服端樣板參數 (判斷是否為試算表內部對話框) -->
+  <script type="application/json" id="envConfig">
+    {
+      "isModalDialog": <?= typeof isModalDialog !== 'undefined' && isModalDialog ? true : false ?>
+    }
+  </script>
   <base target="_top">
   <meta charset="utf-8">
   <title>教師全功能主控台</title>
@@ -658,6 +664,527 @@
       min-height: 20px;
     }
 
+  
+    /* =========================================================
+       SubjectDashboard 科任主控版整合樣式
+    ========================================================= */
+
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --success: #16a34a;
+      --purple: #9333ea;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-600: #475569;
+      --gray-800: #1e293b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Microsoft JhengHei", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f1f5f9;
+      color: var(--gray-800);
+      overflow-x: hidden;
+    }
+    header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-title h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    select, button {
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      border: 1px solid #cbd5e1;
+      font-family: inherit;
+    }
+    select {
+      background-color: white;
+      color: #334155;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn {
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline {
+      background: transparent;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .btn-outline:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: white;
+    }
+
+    /* Container & Layout */
+    .container {
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: white;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border-left: 4px solid #94a3b8;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .kpi-card.blue { border-left-color: var(--primary); }
+    .kpi-card.red { border-left-color: var(--danger); }
+    .kpi-card.yellow { border-left-color: var(--warning); }
+    .kpi-card.green { border-left-color: var(--success); }
+    .kpi-card.purple { border-left-color: var(--purple); }
+    .kpi-title {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    /* Navigation Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 20px;
+      background: white;
+      border-radius: 8px 8px 0 0;
+      padding: 8px 12px 0;
+    }
+    .tab-btn {
+      padding: 10px 18px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #64748b;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--primary); }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: #f8fafc;
+      border-radius: 6px 6px 0 0;
+    }
+
+    /* Tab Contents */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Card Panels */
+    .panel-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Tables */
+    .table-responsive {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: center;
+    }
+    th {
+      background-color: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      padding: 12px 10px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+    }
+    tr:hover td { background-color: #f8fafc; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .badge-danger { background: #fee2e2; color: #b91c1c; }
+    .badge-warning { background: #fef3c7; color: #b45309; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-info { background: #e0f2fe; color: #0369a1; }
+    .badge-purple { background: #f3e8ff; color: #7e22ce; }
+
+    /* Chart Toolbar & Selector */
+    .chart-toolbar {
+      background: white;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .chart-controls-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .chart-seg-group {
+      display: flex;
+      background: #f1f5f9;
+      padding: 3px;
+      border-radius: 8px;
+      gap: 4px;
+    }
+    .chart-seg-btn {
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chart-seg-btn:hover { color: var(--primary); }
+    .chart-seg-btn.active {
+      background: white;
+      color: var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Charts Grid - 徹底解決無限垂直延伸的核心 CSS */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+      gap: 20px;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+    }
+    .charts-grid.single-mode {
+      grid-template-columns: 1fr;
+    }
+    .chart-box {
+      background: white;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0; /* 防止子元素溢出 */
+    }
+    .chart-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* 圖表容器固定高度，徹底鎖死高度防止 Chart.js resize loop 造成無限往下延伸 */
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      max-height: 380px;
+      overflow: hidden;
+    }
+    .charts-grid.single-mode .chart-wrapper {
+      height: 450px;
+      max-height: 450px;
+    }
+
+    /* Filters Bar */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .filter-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #475569;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .filter-btn.active {
+      background: #1e293b;
+      color: white;
+      border-color: #1e293b;
+    }
+
+    /* Micro Student Card */
+    .student-search-box {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .student-card-header {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      padding: 18px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .student-info h3 { margin: 0 0 6px 0; font-size: 20px; }
+    .student-meta { font-size: 13px; opacity: 0.9; display: flex; gap: 15px; }
+    .student-metrics { display: flex; gap: 20px; }
+    .metric-item { text-align: right; }
+    .metric-item span { display: block; font-size: 12px; opacity: 0.8; }
+    .metric-item strong { font-size: 22px; font-weight: 800; }
+
+    /* Timeline */
+    .timeline {
+      position: relative;
+      padding-left: 24px;
+      margin-top: 15px;
+    }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      background: #e2e8f0;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .timeline-dot {
+      position: absolute;
+      left: -24px;
+      top: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid white;
+      background: #94a3b8;
+    }
+    .timeline-dot.red { background: var(--danger); }
+    .timeline-dot.yellow { background: var(--warning); }
+    .timeline-dot.green { background: var(--success); }
+    .timeline-dot.purple { background: var(--purple); }
+    .timeline-content {
+      background: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .timeline-time { font-weight: 700; color: #475569; margin-bottom: 2px; }
+
+    /* Loading overlay */
+    #loadingOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* PIN 碼安全驗證鎖定畫面 */
+    .pin-auth-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .pin-card {
+      background: white;
+      border-radius: 14px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.4), 0 8px 10px -6px rgba(0,0,0,0.3);
+      animation: pinFadeIn 0.3s ease-out;
+    }
+    @keyframes pinFadeIn {
+      from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .pin-icon {
+      font-size: 46px;
+      margin-bottom: 12px;
+    }
+    .pin-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 0 0 8px 0;
+    }
+    .pin-desc {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0 0 24px 0;
+      line-height: 1.5;
+    }
+    .pin-input-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 12px 42px 12px 16px;
+      font-size: 18px;
+      letter-spacing: 2px;
+      font-weight: bold;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      text-align: center;
+      box-sizing: border-box;
+      transition: all 0.2s;
+    }
+    .pin-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+      outline: none;
+    }
+    .pin-toggle-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    .pin-error-box {
+      color: #dc2626;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 16px;
+      min-height: 20px;
+    }
+
+  
   </style>
 </head>
 <body>
@@ -951,86 +1478,232 @@
     <!-- ==============================================================
          TAB 3: 科任班級主控版 (直接整合現有 SubjectDashboard 功能)
     ============================================================== -->
+    
+    <!-- ==============================================================
+         TAB 3: 科任班級主控版 (完全融入 SubjectDashboard 跨班分析)
+    ============================================================== -->
     <div id="tab-subject" class="tab-content">
-      <div class="toolbar-row">
+      <!-- 科任控制列 -->
+      <div class="toolbar-row" style="background:#1e293b; color:white;">
         <div class="filter-group">
-          <label>👥 選擇跨班群組：</label>
-          <select id="subjectGroupSelect" class="student-select" style="max-width:320px;" onchange="loadSubjectGroupData()"></select>
-          <button class="btn btn-primary" onclick="loadSubjectGroupData()">🔄 重新載入</button>
-          <button class="btn btn-success" onclick="generateSubjectSheet()">📑 產出分析總表分頁</button>
+          <label style="color:#cbd5e1;">👥 選擇分析群組：</label>
+          <select id="groupSelect" class="student-select" style="max-width:320px; background:#0f172a; color:white; border-color:#475569;" onchange="onGroupChange()"></select>
+          <button class="btn btn-secondary" onclick="loadGroupData()">🔄 重新整理</button>
+          <button class="btn btn-primary" onclick="exportToSheet()">📑 產出試算表分頁</button>
+        </div>
+        <div>
+          <span style="font-size:12px; color:#94a3b8;">巨觀掌控班級落差 · 微觀診斷個別學習 · 智慧自動預警</span>
         </div>
       </div>
 
+<div class="container">
+    <!-- KPI Summary Row -->
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <div class="kpi-title">教學班級數</div>
+        <div class="kpi-value" id="kpiClassCount">-</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kpi-title">年段總應考人數</div>
+        <div class="kpi-value" id="kpiStudentCount">-</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-title">年段加權總平均</div>
+        <div class="kpi-value" id="kpiOverallAvg">-</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-title">🔴 高風險預警</div>
+        <div class="kpi-value" id="kpiCrisisCount">-</div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-title">🟡 顯著退步</div>
+        <div class="kpi-value" id="kpiWarningCount">-</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-title">🟢 顯著進步</div>
+        <div class="kpi-value" id="kpiGrowthCount">-</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('macro')">📈 跨班橫向與趨勢比較 (Macro View)</button>
+      <button class="tab-btn" onclick="switchTab('alerts')">🚨 自動化預警與關注名單 (Auto-Alert)</button>
+      <button class="tab-btn" onclick="switchTab('micro')">👤 個別學生學習歷程卡 (Micro View)</button>
+    </div>
+
+    <!-- TAB 1: Macro View -->
+    <div id="tab-macro" class="tab-panel active">
       <!-- 跨班指標對照表 -->
-      <div class="card">
-        <div class="card-title">
-          <span>📊 跨班指標對照表 (Macro Matrix)</span>
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">📋 跨班指標對照表 (各班整體學習狀態與齊次度)</div>
+          <span style="font-size:12px; color:#64748b;">標準差過大(≥18)為雙峰分化，應採差異化教學；標準差小(≤12)代表程度平均</span>
         </div>
-        <div style="overflow-x:auto;">
-          <table class="detail-table" id="crossClassTable">
+        <div class="table-responsive">
+          <table id="macroTable">
             <thead>
               <tr>
                 <th>班級</th>
                 <th>應考人數</th>
                 <th>班平均</th>
-                <th>及格率</th>
-                <th>標準差 (齊次度)</th>
+                <th>及格率 (≥60)</th>
+                <th>標準差 (齊次度判讀)</th>
                 <th>頂標率 (P88)</th>
                 <th>底標率 (P12)</th>
               </tr>
             </thead>
-            <tbody id="crossClassTableBody">
-              <tr><td colspan="7">載入中...</td></tr>
-            </tbody>
+            <tbody id="macroTableBody"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- 視覺化圖表區 -->
-      <div class="card">
-        <div class="card-title">
-          <span>📈 跨班學業走勢與能力結構分佈</span>
+      <!-- 圖表切換控制工具列 -->
+      <div class="chart-toolbar">
+        <div class="panel-title" style="margin:0;">
+          <span>📈 視覺化分析圖表</span>
+          <span style="font-size:12px; font-weight:normal; color:#64748b; margin-left:6px;">(可依需求選擇單一全寬或同時並排)</span>
         </div>
-        <div class="chart-grid-2x2">
-          <div class="chart-box" style="height:360px;">
-            <div class="chart-title">📈 跨班加權平均走勢 (Multi-Line Chart)</div>
-            <div class="chart-canvas-wrapper">
-              <canvas id="subjectCrossTrendChart"></canvas>
-            </div>
-          </div>
-          <div class="chart-box" style="height:360px;">
-            <div class="chart-title">📊 班級五標能力結構分佈 (Stacked Bar Chart)</div>
-            <div class="chart-canvas-wrapper">
-              <canvas id="subjectTierStackChart"></canvas>
-            </div>
+        <div class="chart-controls-group">
+          <label for="chartDisplaySelect" style="font-size:13px; color:#475569; font-weight:600;">圖表切換：</label>
+          <select id="chartDisplaySelect" onchange="onChartModeChange(this.value)">
+            <option value="both" selected>🔀 同時顯示兩者</option>
+            <option value="line">📈 僅顯示跨班走勢圖</option>
+            <option value="bar">📊 僅顯示能力結構堆疊圖</option>
+          </select>
+          <div class="chart-seg-group">
+            <button class="chart-seg-btn active" id="btnModeBoth" onclick="onChartModeChange('both')">🔀 同時顯示</button>
+            <button class="chart-seg-btn" id="btnModeLine" onclick="onChartModeChange('line')">📈 走勢圖</button>
+            <button class="chart-seg-btn" id="btnModeBar" onclick="onChartModeChange('bar')">📊 堆疊圖</button>
           </div>
         </div>
       </div>
 
-      <!-- 自動預警名單 -->
-      <div class="card">
-        <div class="card-title">
-          <span>⚠️ 需關注學生自動標記名單 (扶弱 ‧ 輔導 ‧ 拔尖)</span>
+      <!-- 圖表區：包覆 chart-wrapper 固定高度徹底防止無限垂直延伸 -->
+      <div class="charts-grid" id="macroChartsGrid">
+        <div class="chart-box" id="boxMultiLine">
+          <div class="chart-title">
+            <span>📈 跨班歷次測驗走勢圖 (各班 vs 年段基準)</span>
+          </div>
+          <div class="chart-wrapper" id="wrapperMultiLine">
+            <canvas id="multiLineChart"></canvas>
+          </div>
         </div>
-        <div style="overflow-x:auto;">
-          <table class="detail-table" id="attentionTable">
+        <div class="chart-box" id="boxStackedBar">
+          <div class="chart-title">
+            <span>📊 班級能力結構堆疊分佈圖 (五標梯隊佔比)</span>
+          </div>
+          <div class="chart-wrapper" id="wrapperStackedBar">
+            <canvas id="stackedBarChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Auto-Alert System -->
+    <div id="tab-alerts" class="tab-panel">
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">⚠️ 需關注學生自動預警標記清單</div>
+          <div style="font-size:12px; color:#64748b;">依歷史測驗滾動運算，及時發掘學習異常與亮點</div>
+        </div>
+
+        <!-- 篩選列 -->
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterAlerts('ALL')">全部關注</button>
+          <button class="filter-btn" onclick="filterAlerts('CRISIS')">🔴 高風險/警訊</button>
+          <button class="filter-btn" onclick="filterAlerts('WARNING')">🟡 顯著退步</button>
+          <button class="filter-btn" onclick="filterAlerts('UNSTABLE')">⚡ 高波動/不穩</button>
+          <button class="filter-btn" onclick="filterAlerts('GROWTH')">🟢 顯著進步</button>
+          <span style="border-left:1px solid #cbd5e1; margin:0 4px;"></span>
+          <select id="classFilterSelect" onchange="filterAlertsByClass()" style="padding:4px 8px; font-size:12px;">
+            <option value="ALL">全部班級</option>
+          </select>
+        </div>
+
+        <div class="table-responsive">
+          <table>
             <thead>
               <tr>
+                <th>標記類型</th>
                 <th>班級</th>
                 <th>座號</th>
                 <th>姓名</th>
-                <th>標記類型</th>
-                <th>最新成績</th>
-                <th>觸發診斷原因</th>
+                <th>最新分數</th>
+                <th>個人平均</th>
+                <th>觸發條件原因</th>
+                <th>建議教學行動</th>
+                <th>歷程診斷</th>
               </tr>
             </thead>
-            <tbody id="attentionTableBody">
-              <tr><td colspan="6">載入中...</td></tr>
-            </tbody>
+            <tbody id="alertTableBody"></tbody>
           </table>
         </div>
       </div>
     </div>
+
+    <!-- TAB 3: Micro View -->
+    <div id="tab-micro" class="tab-panel">
+      <div class="panel-card">
+        <div class="student-search-box">
+          <label style="font-weight:700;">選擇學生：</label>
+          <select id="microClassSelect" onchange="populateStudentSelect()"></select>
+          <select id="microStudentSelect" onchange="loadStudentMicroData()"></select>
+        </div>
+
+        <!-- 學生資訊抬頭 -->
+        <div class="student-card-header" id="studentHeaderBox">
+          <div class="student-info">
+            <h3 id="mStudentName">-</h3>
+            <div class="student-meta">
+              <span>班級：<b id="mStudentClass">-</b></span>
+              <span>座號：<b id="mStudentSeat">-</b></span>
+            </div>
+          </div>
+          <div class="student-metrics">
+            <div class="metric-item">
+              <span>個人總平均</span>
+              <strong id="mStudentAvg">-</strong>
+            </div>
+            <div class="metric-item">
+              <span>最新測驗分數</span>
+              <strong id="mStudentLatest">-</strong>
+            </div>
+            <div class="metric-item">
+              <span>全期測驗次數</span>
+              <strong id="mStudentTestCount">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 圖表與歷程時間軸 (同樣套用 chart-wrapper 防止延伸) -->
+        <div class="charts-grid">
+          <div class="chart-box">
+            <div class="chart-title">📉 個人與年段/班級走勢對比 (判斷個人退步 vs 試題偏難)</div>
+            <div class="chart-wrapper">
+              <canvas id="studentTrendChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">🎯 評量類別/單元能力強弱雷達圖 (弱項標示)</div>
+            <div class="chart-wrapper">
+              <canvas id="studentRadarChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 預警歷史紀錄 -->
+        <div class="panel-card" style="margin-top:20px; box-shadow:none; border:1px solid #e2e8f0;">
+          <div class="panel-title" style="font-size:15px; margin-bottom:12px;">🕒 本學期關注標記歷史軌跡</div>
+          <div class="timeline" id="studentTimeline"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+    </div>
+
   </main>
   </div><!-- #appContainer -->
 
@@ -1082,8 +1755,19 @@
     const PIN_SESSION_KEY = "teacher_hub_pin_verified_v1";
 
     window.onload = function() {
-      // 檢查是否已於同 Session 通過驗證
-      if (sessionStorage.getItem(PIN_SESSION_KEY) === "true") {
+      let isModal = false;
+      try {
+        const envElem = document.getElementById('envConfig');
+        if (envElem && envElem.textContent.trim()) {
+          const cfg = JSON.parse(envElem.textContent);
+          isModal = !!cfg.isModalDialog;
+        }
+      } catch (e) {
+        console.warn("無法解析 envConfig:", e);
+      }
+
+      // 若由試算表對話框開啟，或已在同一 Session 通過驗證，則直接解鎖免輸 PIN 碼
+      if (isModal || sessionStorage.getItem(PIN_SESSION_KEY) === "true") {
         unlockApp();
       } else {
         document.getElementById('pinAuthOverlay').style.display = "flex";
@@ -1097,11 +1781,7 @@
 
     function togglePinVisibility() {
       const inp = document.getElementById('teacherPinInput');
-      if (inp.type === "password") {
-        inp.type = "text";
-      } else {
-        inp.type = "password";
-      }
+      inp.type = (inp.type === "password") ? "text" : "password";
     }
 
     function submitTeacherPin() {
@@ -1156,12 +1836,9 @@
       // 綁定拖曳事件
       initUploadZoneEvents();
 
-      // 設定預設日期
+      // 設定預設日期 (抓取最早的成績到今日，與 DateRangeDialog 邏輯相同)
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
-      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      document.getElementById('tutorStartDate').value = monthAgo;
-      document.getElementById('tutorEndDate').value = todayStr;
 
       // 載入系統基本元資料
       showLoading("正在載入系統設定與班級清單...");
@@ -1173,6 +1850,10 @@
             if (meta.mainClassName) {
               document.getElementById('tutorClassNameLabel').innerText = `導師班：${meta.mainClassName}`;
             }
+            // 預設日期區間：最早成績日期 ~ 今日
+            const earliest = meta.earliestDate || todayStr;
+            document.getElementById('tutorStartDate').value = earliest;
+            document.getElementById('tutorEndDate').value = todayStr;
           }
         })
         .withFailureHandler(err => {
@@ -1182,45 +1863,6 @@
         .getAvailableClassesAndSubjects();
     }
 
-    function showLoading(msg) {
-      document.getElementById('loadingText').innerText = msg || "⏳ 資料載入中，請稍候...";
-      document.getElementById('loadingOverlay').style.display = "flex";
-    }
-    function hideLoading() {
-      document.getElementById('loadingOverlay').style.display = "none";
-    }
-
-    /* Tab 切換 */
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-      if (tabId === 'import') {
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        document.getElementById('tab-import').classList.add('active');
-      } else if (tabId === 'tutor') {
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('tab-tutor').classList.add('active');
-        if (!tutorDashboardData) loadTutorDashboardData();
-      } else if (tabId === 'subject') {
-        document.querySelectorAll('.tab-btn')[2].classList.add('active');
-        document.getElementById('tab-subject').classList.add('active');
-        initSubjectTab();
-      }
-    }
-
-    /* 全螢幕切換 */
-    function toggleFullScreen() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => alert("全螢幕受限: " + err.message));
-      } else {
-        document.exitFullscreen();
-      }
-    }
-
-    /* ==============================================================
-       TAB 1: 影像辨識與校對功能
-    ============================================================== */
     function initUploadZoneEvents() {
       const zone = document.getElementById('uploadZone');
       ['dragenter', 'dragover'].forEach(name => {
@@ -1632,7 +2274,7 @@
       let startStr = "";
 
       if (type === 'all') {
-        startStr = "";
+        startStr = systemMeta.earliestDate || "";
       } else if (type === '4w') {
         const d = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
         startStr = d.toISOString().split('T')[0];
@@ -1732,13 +2374,13 @@
           <td style="font-weight:bold; color:var(--primary);">${item.subject}</td>
           <td>${item.examCount} 次</td>
           <td>${item.totalScoresCount} 筆</td>
-          <td style="font-weight:bold;">${item.average}</td>
-          <td>${item.passRate}%</td>
-          <td>${item.maxScore} / ${item.minScore}</td>
-          <td>${item.stdDev}</td>
-          <td style="color:#d97706; font-weight:bold;">${item.fiveTiers.top}</td>
-          <td>${item.fiveTiers.median}</td>
-          <td style="color:#dc2626;">${item.fiveTiers.bottom}</td>
+          <td style="font-weight:bold;">${item.average !== undefined ? item.average : '-'}</td>
+          <td>${item.passRate !== undefined ? item.passRate + '%' : '-'}</td>
+          <td>${item.maxScore !== undefined && item.minScore !== undefined ? item.maxScore + ' / ' + item.minScore : '-'}</td>
+          <td>${item.stdDev !== undefined ? item.stdDev : '-'}</td>
+          <td style="color:#d97706; font-weight:bold;">${item.fiveTiers ? item.fiveTiers.top : '-'}</td>
+          <td>${item.fiveTiers ? item.fiveTiers.median : '-'}</td>
+          <td style="color:#dc2626;">${item.fiveTiers ? item.fiveTiers.bottom : '-'}</td>
         </tr>
       `).join('');
     }
@@ -1937,149 +2579,599 @@
       tbody.innerHTML = tableHtml;
     }
 
+    
     /* ==============================================================
-       TAB 3: 科任班級主控版功能 (整合 SubjectDashboard)
+       TAB 3: 科任班級主控版完整功能 (100% 整合 SubjectDashboard)
     ============================================================== */
-    function initSubjectTab() {
-      const select = document.getElementById('subjectGroupSelect');
-      if (select.children.length > 0) return; // 已載入過
+let currentAnalyticsData = null;
+    let chartMultiLine = null;
+    let chartStackedBar = null;
+    let chartStudentTrend = null;
+    let chartStudentRadar = null;
+    let currentFilterType = "ALL";
+    let currentClassFilter = "ALL";
+    let currentChartMode = "both"; // 'both' | 'line' | 'bar'
 
-      showLoading("正在載入科任班級跨班群組...");
+
+
+    function initSubjectDashboardData() {
+      // 1. 初始化讀取所有同年段同科目群組
       google.script.run
         .withSuccessHandler(groups => {
-          hideLoading();
+          const select = document.getElementById('groupSelect');
           select.innerHTML = "";
           if (!groups || groups.length === 0) {
             select.innerHTML = "<option value=''>無符合格式的科任班級</option>";
-            alert("⚠️ 系統中尚未偵測到符合五碼格式的科任分頁（例如：101理化、102理化）！");
+            hideLoading();
+            alert("⚠️ 系統中尚未偵測到符合五碼格式的科任分頁（例如：國二愛理化、高一忠物理）！");
             return;
           }
-          groups.forEach(g => {
+          groups.forEach((g, idx) => {
             const opt = document.createElement('option');
             opt.value = g.groupKey;
-            opt.innerText = `${g.displayName} (共 ${g.classes.length} 班)`;
+            opt.innerText = `${g.displayName} (共 ${g.classes.length} 個班級)`;
             select.appendChild(opt);
           });
-          loadSubjectGroupData();
+          loadGroupData();
         })
         .withFailureHandler(err => {
           hideLoading();
-          alert("載入科任群組失敗：" + err.message);
+          alert("讀取群組失敗：" + err.message);
         })
         .getSubjectClassGroups();
     }
 
-    function loadSubjectGroupData() {
-      const select = document.getElementById('subjectGroupSelect');
-      const groupKey = select.value;
-      if (!groupKey) return;
+    function showLoading() {
+      document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }
 
-      showLoading("正在運算科任跨班矩陣與自動預警標記...");
+    /* 全螢幕切換功能 */
+    function toggleFullScreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().catch(err => alert("全螢幕切換受限: " + err.message));
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        } else if (docEl.msRequestFullscreen) {
+          docEl.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    }
+
+    function updateFullscreenBtn() {
+      const btn = document.getElementById('btnFullscreen');
+      if (!btn) return;
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+      if (isFull) {
+        btn.innerHTML = "🗗 結束全螢幕";
+        btn.style.background = "rgba(255,255,255,0.2)";
+        btn.style.borderColor = "white";
+      } else {
+        btn.innerHTML = "🖥️ 全螢幕模式";
+        btn.style.background = "transparent";
+        btn.style.borderColor = "rgba(255,255,255,0.3)";
+      }
+    }
+
+    document.addEventListener("fullscreenchange", updateFullscreenBtn);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenBtn);
+    document.addEventListener("msfullscreenchange", updateFullscreenBtn);
+
+    /* 圖表選單切換 (同時顯示 / 僅走勢圖 / 僅堆疊圖) */
+    function onChartModeChange(mode) {
+      currentChartMode = mode;
+      const sel = document.getElementById('chartDisplaySelect');
+      if (sel) sel.value = mode;
+
+      document.querySelectorAll('.chart-seg-btn').forEach(btn => btn.classList.remove('active'));
+      if (mode === 'both') {
+        const b = document.getElementById('btnModeBoth'); if (b) b.classList.add('active');
+      } else if (mode === 'line') {
+        const b = document.getElementById('btnModeLine'); if (b) b.classList.add('active');
+      } else if (mode === 'bar') {
+        const b = document.getElementById('btnModeBar'); if (b) b.classList.add('active');
+      }
+
+      const grid = document.getElementById('macroChartsGrid');
+      const boxLine = document.getElementById('boxMultiLine');
+      const boxBar = document.getElementById('boxStackedBar');
+      const wrapLine = document.getElementById('wrapperMultiLine');
+      const wrapBar = document.getElementById('wrapperStackedBar');
+
+      if (mode === 'both') {
+        grid.classList.remove('single-mode');
+        boxLine.style.display = 'flex';
+        boxBar.style.display = 'flex';
+        wrapLine.style.height = '380px';
+        wrapBar.style.height = '380px';
+      } else if (mode === 'line') {
+        grid.classList.add('single-mode');
+        boxLine.style.display = 'flex';
+        boxBar.style.display = 'none';
+        wrapLine.style.height = '460px';
+      } else if (mode === 'bar') {
+        grid.classList.add('single-mode');
+        boxLine.style.display = 'none';
+        boxBar.style.display = 'flex';
+        wrapBar.style.height = '460px';
+      }
+
+      // 觸發 Chart.js 平滑適應新容器尺寸
+      setTimeout(() => {
+        if (chartMultiLine) chartMultiLine.resize();
+        if (chartStackedBar) chartStackedBar.resize();
+      }, 60);
+    }
+
+    function onGroupChange() {
+      loadGroupData();
+    }
+
+    function loadGroupData() {
+      const groupKey = document.getElementById('groupSelect').value;
+      if (!groupKey) return;
+      showLoading();
+
       google.script.run
         .withSuccessHandler(data => {
           hideLoading();
-          if (!data || !data.classes || data.classes.length === 0) {
-            alert("該群組無有效跨班數據！");
-            return;
-          }
-
-          // 1. 跨班指標表格
-          const tBody = document.getElementById('crossClassTableBody');
-          tBody.innerHTML = data.classes.map(c => `
-            <tr>
-              <td style="font-weight:bold; color:var(--primary);">${c.className}</td>
-              <td>${c.totalStudents} 人</td>
-              <td style="font-weight:bold;">${c.mean}</td>
-              <td>${c.passRate}%</td>
-              <td>${c.stdDev}</td>
-              <td style="color:#d97706; font-weight:bold;">${c.p88Rate}%</td>
-              <td style="color:#dc2626;">${c.p12Rate}%</td>
-            </tr>
-          `).join('');
-
-          // 2. 跨班走勢圖
-          renderCrossTrendChart(data.weeklyTrendChart);
-
-          // 3. 堆疊圖
-          renderTierStackChart(data.tierStackedChart);
-
-          // 4. 預警關注名單
-          renderAttentionTable(data.attentionStudents);
+          currentAnalyticsData = data;
+          renderDashboard(data);
         })
         .withFailureHandler(err => {
           hideLoading();
-          alert("載入科任數據失敗：" + err.message);
+          alert("取得跨班分析資料失敗: " + err.message);
         })
         .getCrossClassAnalytics(groupKey);
     }
 
-    function renderCrossTrendChart(chartData) {
-      const ctx = document.getElementById('subjectCrossTrendChart');
-      if (subjectCharts.crossTrend) subjectCharts.crossTrend.destroy();
-      subjectCharts.crossTrend = new Chart(ctx, {
-        type: 'line',
-        data: chartData,
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: { y: { min: 0, max: 100 } },
-          plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } }
-        }
+    function renderDashboard(data) {
+      if (!data) return;
+
+      // 1. KPI Cards
+      document.getElementById('kpiClassCount').innerText = data.kpis.classCount;
+      document.getElementById('kpiStudentCount').innerText = data.kpis.studentCount;
+      document.getElementById('kpiOverallAvg').innerText = data.kpis.overallAvg;
+      document.getElementById('kpiCrisisCount').innerText = data.kpis.crisisCount;
+      document.getElementById('kpiWarningCount').innerText = data.kpis.warningCount;
+      document.getElementById('kpiGrowthCount').innerText = data.kpis.growthCount;
+
+      // 2. 班級過濾器與個別學生下拉初始化
+      const classFilterSelect = document.getElementById('classFilterSelect');
+      const microClassSelect = document.getElementById('microClassSelect');
+      classFilterSelect.innerHTML = '<option value="ALL">全部班級</option>';
+      microClassSelect.innerHTML = '';
+
+      data.classes.forEach(c => {
+        const opt1 = document.createElement('option');
+        opt1.value = c.className;
+        opt1.innerText = `${c.className} 班`;
+        classFilterSelect.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = c.className;
+        opt2.innerText = `${c.className} 班`;
+        microClassSelect.appendChild(opt2);
       });
+
+      // 3. 渲染 Tab 1: 跨班指標對照表
+      const macroBody = document.getElementById('macroTableBody');
+      macroBody.innerHTML = "";
+      data.macroStats.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight:700;">${item.className}</td>
+          <td>${item.studentCount}</td>
+          <td style="font-weight:700; color:var(--primary);">${item.avg}</td>
+          <td>${item.passRate}%</td>
+          <td>
+            <span style="font-weight:700;">${item.stdDev}</span>
+            <span class="badge ${item.homogeneity.badge}">${item.homogeneity.label}</span>
+          </td>
+          <td>${item.topTierRate}%</td>
+          <td>${item.bottomTierRate}%</td>
+        `;
+        macroBody.appendChild(tr);
+      });
+
+      // 4. 渲染圖表
+      renderMacroCharts(data);
+
+      // 5. 渲染 Tab 2: 預警名單
+      renderAlertsTable();
+
+      // 6. 初始化 Tab 3 學生選擇
+      populateStudentSelect();
     }
 
-    function renderTierStackChart(chartData) {
-      const ctx = document.getElementById('subjectTierStackChart');
-      if (subjectCharts.tierStack) subjectCharts.tierStack.destroy();
-      subjectCharts.tierStack = new Chart(ctx, {
-        type: 'bar',
-        data: chartData,
+    function renderMacroCharts(data) {
+      const palette = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#d97706", "#0891b2"];
+
+      // Multi-Line Trend Chart
+      if (chartMultiLine) chartMultiLine.destroy();
+      const lineDatasets = data.classes.map((cls, idx) => ({
+        label: `${cls.className} 班`,
+        data: data.trendTests.map(t => {
+          const val = cls.testAvgs[t.testId];
+          return val !== undefined && val !== null ? val : null;
+        }),
+        borderColor: palette[idx % palette.length],
+        backgroundColor: palette[idx % palette.length],
+        tension: 0.2,
+        fill: false,
+        spanGaps: true
+      }));
+
+      // 加入年段全體基準線 (虛線)
+      lineDatasets.push({
+        label: "年段平均基準",
+        data: data.trendTests.map(t => t.gradeAvg),
+        borderColor: "#64748b",
+        borderDash: [6, 4],
+        backgroundColor: "transparent",
+        tension: 0.2,
+        fill: false,
+        spanGaps: true
+      });
+
+      chartMultiLine = new Chart(document.getElementById('multiLineChart'), {
+        type: 'line',
+        data: {
+          labels: data.trendTests.map(t => t.label),
+          datasets: lineDatasets
+        },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            y: { min: 0, max: 100, title: { display: true, text: '平均分' } }
+          }
+        }
+      });
+
+      // Stacked Bar Chart (能力結構)
+      if (chartStackedBar) chartStackedBar.destroy();
+      const tiers = [
+        { label: "頂標 (P88)", color: "#16a34a", key: "top" },
+        { label: "前標 (P75)", color: "#65a30d", key: "high" },
+        { label: "均標 (P50)", color: "#2563eb", key: "mid" },
+        { label: "後標 (P25)", color: "#d97706", key: "low" },
+        { label: "底標 (P12及以下)", color: "#dc2626", key: "bottom" }
+      ];
+
+      const barDatasets = tiers.map(t => ({
+        label: t.label,
+        data: data.macroStats.map(m => m.tierPercentages[t.key] || 0),
+        backgroundColor: t.color
+      }));
+
+      chartStackedBar = new Chart(document.getElementById('stackedBarChart'), {
+        type: 'bar',
+        data: {
+          labels: data.macroStats.map(m => `${m.className} 班`),
+          datasets: barDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`
+              }
+            }
+          },
           scales: {
             x: { stacked: true },
-            y: { stacked: true, max: 100, title: { display: true, text: '比例 (%)' } }
-          },
-          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+            y: { stacked: true, max: 100, title: { display: true, text: '學生比例 (%)' } }
+          }
         }
       });
+
+      // 套用當前的圖表顯示模式
+      onChartModeChange(currentChartMode);
     }
 
-    function renderAttentionTable(list) {
-      const tbody = document.getElementById('attentionTableBody');
-      if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="color:#10b981; font-weight:bold;">🎉 全員表現穩定，目前無觸發預警之學生！</td></tr>';
+    function renderAlertsTable() {
+      if (!currentAnalyticsData) return;
+      const tbody = document.getElementById('alertTableBody');
+      tbody.innerHTML = "";
+
+      let filtered = currentAnalyticsData.attentionStudents;
+
+      // 類型篩選
+      if (currentFilterType !== "ALL") {
+        filtered = filtered.filter(s => s.tags.some(t => t.type.toUpperCase() === currentFilterType));
+      }
+      // 班級篩選
+      if (currentClassFilter !== "ALL") {
+        filtered = filtered.filter(s => s.className === currentClassFilter);
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:24px; color:#94a3b8;">🎉 目前無符合條件之需關注學生！</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = list.map(st => `
-        <tr>
-          <td><strong>${st.className}</strong></td>
-          <td>${st.seat}</td>
-          <td>${st.name}</td>
-          <td><span class="file-status-badge ${st.typeBadgeClass || 'status-pending'}">${st.typeText || st.type}</span></td>
-          <td><strong>${st.latestScore !== undefined ? st.latestScore : '-'}</strong></td>
-          <td style="text-align:left; color:#b91c1c;">${st.reason}</td>
-        </tr>
-      `).join('');
+      filtered.forEach(s => {
+        const tr = document.createElement('tr');
+        const badgeHtml = s.tags.map(t => {
+          let bClass = "badge-info";
+          if (t.type === 'crisis') bClass = "badge-danger";
+          else if (t.type === 'warning') bClass = "badge-warning";
+          else if (t.type === 'growth') bClass = "badge-success";
+          else if (t.type === 'unstable') bClass = "badge-purple";
+          return `<span class="badge ${bClass}">${t.label}</span>`;
+        }).join(" ");
+
+        const reasonsHtml = s.tags.map(t => t.reason).join("；");
+        const actionHtml = s.suggestedAction || "加強課堂互動與理解度排查";
+
+        tr.innerHTML = `
+          <td>${badgeHtml}</td>
+          <td style="font-weight:700;">${s.className}</td>
+          <td>${s.seat}</td>
+          <td style="font-weight:700; color:#0f172a;">${s.name}</td>
+          <td style="font-weight:700;">${s.latestScore}</td>
+          <td>${s.avgScore}</td>
+          <td style="text-align:left; color:#475569;">${reasonsHtml}</td>
+          <td style="text-align:left; font-size:12px; color:#334155;">${actionHtml}</td>
+          <td>
+            <button class="btn btn-outline" style="color:var(--primary); border-color:#cbd5e1; padding:4px 8px; font-size:12px;" onclick="viewStudentMicro('${s.className}', '${s.seat}')">👁️ 檢視</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
-    function generateSubjectSheet() {
-      const groupKey = document.getElementById('subjectGroupSelect').value;
-      if (!groupKey) return alert("請先選擇群組！");
-      showLoading("正在產出科任跨班分析總表分頁...");
+    function filterAlerts(type) {
+      currentFilterType = type;
+      document.querySelectorAll('.filter-bar .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      renderAlertsTable();
+    }
+
+    function filterAlertsByClass() {
+      currentClassFilter = document.getElementById('classFilterSelect').value;
+      renderAlertsTable();
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tabs .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+
+      // 切換回 Tab 1 時確保圖表適應尺寸
+      if (tabId === 'macro') {
+        setTimeout(() => {
+          if (chartMultiLine) chartMultiLine.resize();
+          if (chartStackedBar) chartStackedBar.resize();
+        }, 50);
+      }
+    }
+
+    function populateStudentSelect() {
+      if (!currentAnalyticsData) return;
+      const selectedClass = document.getElementById('microClassSelect').value;
+      const studentSelect = document.getElementById('microStudentSelect');
+      studentSelect.innerHTML = "";
+
+      const clsData = currentAnalyticsData.classes.find(c => c.className === selectedClass);
+      if (!clsData || !clsData.students) return;
+
+      clsData.students.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.seat;
+        opt.innerText = `${s.seat} 號 - ${s.name}`;
+        studentSelect.appendChild(opt);
+      });
+
+      loadStudentMicroData();
+    }
+
+    function viewStudentMicro(className, seat) {
+      // 切換至 Tab 3
+      document.querySelectorAll('.tabs .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tabs .tab-btn')[2].classList.add('active');
+      document.getElementById('tab-micro').classList.add('active');
+
+      document.getElementById('microClassSelect').value = className;
+      populateStudentSelect();
+      document.getElementById('microStudentSelect').value = seat;
+      loadStudentMicroData();
+    }
+
+    function loadStudentMicroData() {
+      if (!currentAnalyticsData) return;
+      const className = document.getElementById('microClassSelect').value;
+      const seat = document.getElementById('microStudentSelect').value;
+
+      const clsData = currentAnalyticsData.classes.find(c => c.className === className);
+      if (!clsData) return;
+      const student = clsData.students.find(s => String(s.seat) === String(seat));
+      if (!student) return;
+
+      document.getElementById('mStudentName').innerText = student.name;
+      document.getElementById('mStudentClass').innerText = `${className} 班`;
+      document.getElementById('mStudentSeat').innerText = `${student.seat} 號`;
+      document.getElementById('mStudentAvg').innerText = student.avg;
+      document.getElementById('mStudentLatest').innerText = student.latestScore;
+      document.getElementById('mStudentTestCount').innerText = student.scores.filter(sc => sc !== null).length;
+
+      // 1. 個人走勢圖 (個人 vs 班均標 vs 年段平均)
+      renderStudentTrendChart(student, clsData, currentAnalyticsData.trendTests);
+
+      // 2. 能力強弱雷達圖 (按評量類別)
+      renderStudentRadarChart(student, clsData);
+
+      // 3. 關注歷史紀錄時間軸
+      renderStudentTimeline(student);
+    }
+
+    function renderStudentTrendChart(student, clsData, trendTests) {
+      if (chartStudentTrend) chartStudentTrend.destroy();
+
+      const labels = trendTests.map(t => t.label);
+      const studentData = trendTests.map(t => {
+        const val = student.testMap[t.testId];
+        return val !== undefined && val !== null ? val : null;
+      });
+      const classP50Data = trendTests.map(t => clsData.testP50s[t.testId] || null);
+      const gradeAvgData = trendTests.map(t => t.gradeAvg);
+
+      chartStudentTrend = new Chart(document.getElementById('studentTrendChart'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: `${student.name} (個人得分)`,
+              data: studentData,
+              borderColor: '#2563eb',
+              backgroundColor: '#2563eb',
+              borderWidth: 3,
+              tension: 0.2,
+              fill: false,
+              spanGaps: true
+            },
+            {
+              label: `班級均標線 (P50)`,
+              data: classP50Data,
+              borderColor: '#d97706',
+              borderDash: [5, 5],
+              fill: false,
+              spanGaps: true
+            },
+            {
+              label: `年段平均基準線`,
+              data: gradeAvgData,
+              borderColor: '#94a3b8',
+              borderDash: [3, 3],
+              fill: false,
+              spanGaps: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { y: { min: 0, max: 100 } }
+        }
+      });
+    }
+
+    function renderStudentRadarChart(student, clsData) {
+      if (chartStudentRadar) chartStudentRadar.destroy();
+
+      const categories = Object.keys(clsData.categoryAvgs || {});
+      const studentCatData = categories.map(cat => student.categoryAvgs[cat] || 0);
+      const classCatData = categories.map(cat => clsData.categoryAvgs[cat] || 0);
+
+      chartStudentRadar = new Chart(document.getElementById('studentRadarChart'), {
+        type: 'radar',
+        data: {
+          labels: categories.length > 0 ? categories : ['評量項目'],
+          datasets: [
+            {
+              label: `${student.name} 個人平均`,
+              data: studentCatData,
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.25)',
+              borderWidth: 2
+            },
+            {
+              label: '全班平均基準',
+              data: classCatData,
+              borderColor: '#94a3b8',
+              backgroundColor: 'rgba(148, 163, 184, 0.15)',
+              borderWidth: 1,
+              borderDash: [4, 4]
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { r: { min: 0, max: 100, ticks: { stepSize: 20 } } },
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+
+    function renderStudentTimeline(student) {
+      const container = document.getElementById('studentTimeline');
+      container.innerHTML = "";
+
+      if (!student.alertHistory || student.alertHistory.length === 0) {
+        container.innerHTML = `<div style="color:#94a3b8; font-size:13px;">該學生本學期表現穩定，未曾觸發任何預警或異常波動。</div>`;
+        return;
+      }
+
+      student.alertHistory.forEach(h => {
+        const item = document.createElement('div');
+        item.className = 'timeline-item';
+        let dotColor = "red";
+        if (h.type === 'growth') dotColor = "green";
+        else if (h.type === 'warning') dotColor = "yellow";
+        else if (h.type === 'unstable') dotColor = "purple";
+
+        item.innerHTML = `
+          <div class="timeline-dot ${dotColor}"></div>
+          <div class="timeline-content">
+            <div class="timeline-time">${h.testLabel} · 測驗得分：${h.score} 分</div>
+            <div>${h.badgeLabel}：${h.reason}</div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function exportToSheet() {
+      const groupKey = document.getElementById('groupSelect').value;
+      if (!groupKey) return;
+      showLoading();
+
       google.script.run
-        .withSuccessHandler(msg => {
+        .withSuccessHandler(res => {
           hideLoading();
-          alert(msg);
+          alert(res);
         })
         .withFailureHandler(err => {
           hideLoading();
-          alert("產出失敗：" + err.message);
+          alert("產出失敗: " + err.message);
         })
         .generateSubjectClassCrossAnalyticsSheet(groupKey);
     }
+
+    function initSubjectTab() {
+      const select = document.getElementById("groupSelect");
+      if (select && select.children.length > 0) return;
+      initSubjectDashboardData();
+    }
+
   </script>
 </body>
 </html>

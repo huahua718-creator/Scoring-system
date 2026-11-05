@@ -175,8 +175,9 @@ const SUBJECT_TYPE_WEIGHTS = {
 function doGet(e) {
   // 支援教師全功能主控台 (手寫成績單AI辨識匯入 + 導師主控版 + 科任主控版)
   if (e && e.parameter && (e.parameter.page === "teacher" || e.parameter.mode === "teacher" || e.parameter.page === "hub")) {
-    return HtmlService.createTemplateFromFile('TeacherHub')
-      .evaluate()
+    const template = HtmlService.createTemplateFromFile('TeacherHub');
+    template.isModalDialog = false;
+    return template.evaluate()
       .setTitle('教師全功能主控台')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -184,8 +185,9 @@ function doGet(e) {
 
   // 支援科任教師儀表板專用頁面 (例如: ?page=dashboard 或 ?mode=subject)
   if (e && e.parameter && (e.parameter.page === "dashboard" || e.parameter.mode === "subject")) {
-    return HtmlService.createTemplateFromFile('SubjectDashboard')
-      .evaluate()
+    const template = HtmlService.createTemplateFromFile('SubjectDashboard');
+    template.isModalDialog = false;
+    return template.evaluate()
       .setTitle('科任教師跨班分析儀表板')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -3816,10 +3818,13 @@ function generateSubjectClassCrossAnalyticsSheet(groupKey) {
  * 試算表選單彈跳互動視窗開啟科任儀表板
  */
 function showSubjectDashboardDialog() {
-  const html = HtmlService.createHtmlOutputFromFile('SubjectDashboard')
+  const template = HtmlService.createTemplateFromFile('SubjectDashboard');
+  template.isModalDialog = true;
+  const html = template.evaluate()
     .setWidth(1300)
-    .setHeight(820);
-  SpreadsheetApp.getUi().showModalDialog(html, "🏫 科任教師三維度跨班分析儀表板");
+    .setHeight(820)
+    .setTitle("📊 科任教師三維度跨班分析總覽");
+  SpreadsheetApp.getUi().showModalDialog(html, "📊 科任教師三維度跨班分析總覽");
 }
 
 /**
@@ -3934,7 +3939,8 @@ function getAvailableClassesAndSubjects() {
     classes: Array.from(classesSet).filter(Boolean),
     subjects: Array.from(subjectsSet).filter(Boolean),
     evalTypes: ["小考", "平時測驗", "作業", "段考", "期中考", "期末考", "筆記", "課堂表現", "週考"],
-    tutorStudents: tutorStudents
+    tutorStudents: tutorStudents,
+    earliestDate: getEarliestDateInMainSheet()
   };
 }
 
@@ -4427,20 +4433,37 @@ function getTutorDashboardData(startDateStr, endDateStr) {
         spanGaps: true
       });
 
-      // 計算各科總覽指標
+      // 計算各科總覽指標 (直接依照成績數據計算，防止 undefined)
       const allSubjScores = subjectScoresMap[subj] || [];
-      const stats = calculateScoreStats(allSubjScores);
+      let subjAvg = 0;
+      let subjPassRate = 0;
+      let subjMax = 0;
+      let subjMin = 0;
+      let subjStdDev = 0;
+
+      if (allSubjScores.length > 0) {
+        const sum = allSubjScores.reduce((a, b) => a + b, 0);
+        subjAvg = Math.round((sum / allSubjScores.length) * 10) / 10;
+        subjMax = Math.max(...allSubjScores);
+        subjMin = Math.min(...allSubjScores);
+        const passCount = allSubjScores.filter(s => s >= 60).length;
+        subjPassRate = Math.round((passCount / allSubjScores.length) * 1000) / 10;
+
+        const variance = allSubjScores.reduce((acc, val) => acc + Math.pow(val - subjAvg, 2), 0) / allSubjScores.length;
+        subjStdDev = Math.round(Math.sqrt(variance) * 10) / 10;
+      }
+
       const pObj = calculateFiveTierPercentiles(allSubjScores);
 
       subjectStatsList.push({
         subject: subj,
         examCount: (subjectWeekAvgsMap[subj] ? Object.values(subjectWeekAvgsMap[subj]).flat().length : 0),
         totalScoresCount: allSubjScores.length,
-        average: stats.avg,
-        passRate: stats.passRate,
-        maxScore: stats.max,
-        minScore: stats.min,
-        stdDev: stats.stdDev,
+        average: subjAvg,
+        passRate: subjPassRate,
+        maxScore: subjMax,
+        minScore: subjMin,
+        stdDev: subjStdDev,
         fiveTiers: {
           top: pObj.p88,
           high: pObj.p75,
@@ -4477,10 +4500,11 @@ function getTutorDashboardData(startDateStr, endDateStr) {
  * 試算表選單呼叫：開啟教師主控台視窗
  */
 function showTeacherHubDialog() {
-  const html = HtmlService.createTemplateFromFile("TeacherHub")
-    .evaluate()
-    .setWidth(1200)
-    .setHeight(850)
+  const template = HtmlService.createTemplateFromFile("TeacherHub");
+  template.isModalDialog = true;
+  const html = template.evaluate()
+    .setWidth(1250)
+    .setHeight(880)
     .setTitle("🌟 教師全功能主控台 (成績辨識 / 導師主控 / 科任主控)");
   SpreadsheetApp.getUi().showModalDialog(html, "🌟 教師全功能主控台");
 }
