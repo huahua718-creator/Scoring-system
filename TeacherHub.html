@@ -6,6 +6,91 @@
     {
       "isModalDialog": <?= typeof isModalDialog !== 'undefined' && isModalDialog ? true : false ?>
     }
+  
+    /* ==============================================================
+       家長查詢端分享 (短網址 & QR Code) 模組
+    ============================================================== */
+    let parentShareData = null;
+
+    function openParentShareModal() {
+      const modal = document.getElementById('parentShareModal');
+      modal.style.display = 'flex';
+
+      if (parentShareData) {
+        applyParentShareData(parentShareData);
+        return;
+      }
+
+      showLoading("正在產生家長端安全短網址與 QR Code...");
+      google.script.run
+        .withSuccessHandler(data => {
+          hideLoading();
+          if (data) {
+            parentShareData = data;
+            applyParentShareData(data);
+          }
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("產生短網址失敗: " + err.message);
+        })
+        .getParentShareInfo();
+    }
+
+    function applyParentShareData(data) {
+      document.getElementById('shareQrImg').src = data.qrCodeUrl;
+      document.getElementById('shareShortUrlInput').value = data.shortUrl;
+      document.getElementById('btnDownloadQr').href = data.qrCodeUrl;
+    }
+
+    function closeParentShareModal(e) {
+      document.getElementById('parentShareModal').style.display = 'none';
+    }
+
+    function copyShareUrl() {
+      const input = document.getElementById('shareShortUrlInput');
+      input.select();
+      navigator.clipboard.writeText(input.value);
+      alert("✅ 已成功複製家長端查詢短網址！");
+    }
+
+    function printParentSharePoster() {
+      if (!parentShareData) return;
+      const printWin = window.open('', '_blank');
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>學生成績查詢專屬 QR Code</title>
+          <style>
+            body { font-family: "Microsoft JhengHei", Arial, sans-serif; text-align: center; padding: 40px; margin: 0; }
+            .poster { border: 3px dashed #2563eb; border-radius: 16px; padding: 30px; max-width: 500px; margin: auto; }
+            h1 { font-size: 26px; color: #1e293b; margin-top: 0; }
+            p { font-size: 15px; color: #475569; line-height: 1.6; }
+            .qr-box { margin: 24px 0; }
+            .qr-box img { width: 260px; height: 260px; border-radius: 8px; border: 1px solid #e2e8f0; }
+            .url-text { font-size: 16px; font-weight: bold; color: #2563eb; background: #eff6ff; padding: 10px; border-radius: 6px; word-break: break-all; }
+            .footer-tip { font-size: 13px; color: #94a3b8; margin-top: 20px; }
+          </style>
+        </head>
+        <body onload="window.print()">
+          <div class="poster">
+            <h1>📄 學生平時成績查詢通知</h1>
+            <p>親愛的家長與同學：<br>歡迎使用手機掃描下方 QR Code，輸入<b>學生座號與密碼</b>，即可即時查閱每週各科平時測驗成績與學業學習曲線！</p>
+            <div class="qr-box">
+              <img src="${parentShareData.qrCodeUrl}" alt="QR Code">
+            </div>
+            <div class="url-text">${parentShareData.shortUrl}</div>
+            <div class="footer-tip">※ 本網址為學生/家長查詢專用通道，請妥善保管學生個人密碼。</div>
+          </div>
+        </body>
+        </html>
+      `;
+      printWin.document.write(html);
+      printWin.document.close();
+    }
+
   </script>
   <base target="_top">
   <meta charset="utf-8">
@@ -1284,6 +1369,7 @@
 
     <!-- 右側功能按鈕 -->
     <div class="header-actions">
+      <button class="btn-action" style="background:#10b981; border-color:#059669; font-weight:bold;" onclick="openParentShareModal()">📱 分享家長端 (QR Code)</button>
       <button class="btn-action" onclick="toggleFullScreen()">🖥️ 全螢幕</button>
       <button class="btn-action" onclick="window.print()">🖨️ 列印報表</button>
       <button class="btn-action" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4);" onclick="lockTeacherHub()">🔒 鎖定登出</button>
@@ -1755,7 +1841,44 @@
     </div>
 
   </main>
-  </div><!-- #appContainer -->
+
+  <!-- 家長查詢端 QR Code & 短網址分享彈窗 Modal -->
+  <div id="parentShareModal" class="lightbox-modal" onclick="closeParentShareModal(event)">
+    <div class="lightbox-img-box" style="background:white; max-width:440px; border-radius:14px; padding:24px 28px; text-align:center; color:#1e293b;" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; color:#1e293b; display:flex; align-items:center; gap:8px;">
+          <span>📱</span> 分享家長/學生成績查詢端
+        </h3>
+        <button class="btn btn-secondary" style="padding:2px 8px; font-size:14px;" onclick="closeParentShareModal()">✕</button>
+      </div>
+
+      <p style="font-size:13px; color:#64748b; line-height:1.5; margin:0 0 16px 0;">
+        此為學生家長專用之查詢頁面，掃描後僅能查詢學生成績，<b>完全無法進入或存取教師主控版</b>，請放心分享給家長。
+      </p>
+
+      <div style="background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0; display:inline-block; margin-bottom:14px;">
+        <img id="shareQrImg" src="" alt="家長端查詢 QR Code" style="width:230px; height:230px; display:block; border-radius:6px; margin:auto;">
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <input type="text" id="shareShortUrlInput" readonly style="flex:1; padding:8px 12px; font-size:14px; font-weight:bold; border:1px solid #cbd5e1; border-radius:6px; text-align:center; background:#f1f5f9;">
+        <button class="btn btn-primary" onclick="copyShareUrl()">📋 複製</button>
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:center;">
+        <a id="btnDownloadQr" href="" download="學生成績查詢_QRCode.png" target="_blank" style="text-decoration:none;">
+          <button class="btn btn-success" type="button">💾 下載 QR Code 圖片</button>
+        </a>
+        <button class="btn btn-secondary" type="button" onclick="printParentSharePoster()">🖨️ 列印班級海報小卡</button>
+      </div>
+
+      <div style="margin-top:14px; font-size:12px; color:#94a3b8; text-align:center;">
+        💡 老師可列印海報張貼於教室公佈欄，或將小卡剪貼於學生聯絡簿！
+      </div>
+    </div>
+  </div>
+
+    </div><!-- #appContainer -->
 
   <script>
     /* ==============================================================

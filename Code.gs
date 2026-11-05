@@ -173,17 +173,16 @@ const SUBJECT_TYPE_WEIGHTS = {
 // 1. Web App 網頁查詢端進入點
 // ==========================================
 function doGet(e) {
-  // 支援教師全功能主控台 (手寫成績單AI辨識匯入 + 導師主控版 + 科任主控版)
-  if (e && e.parameter && (e.parameter.page === "teacher" || e.parameter.mode === "teacher" || e.parameter.page === "hub")) {
-    const template = HtmlService.createTemplateFromFile('TeacherHub');
-    template.isModalDialog = false;
-    return template.evaluate()
-      .setTitle('教師全功能主控台')
+  // 1. 若帶有家長/學生專屬參數 (例如: ?view=student 或 ?page=student 或 ?view=parent 或 ?mode=query)，導向學生成績查詢端
+  if (e && e.parameter && (e.parameter.view === "student" || e.parameter.page === "student" || e.parameter.view === "parent" || e.parameter.mode === "query" || e.parameter.role === "student")) {
+    return HtmlService.createTemplateFromFile('Index')
+      .evaluate()
+      .setTitle('學生成績查詢系統')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
-  // 支援科任教師儀表板專用頁面 (例如: ?page=dashboard 或 ?mode=subject)
+  // 2. 若參數指定科任獨立儀表板專用頁面 (例如: ?page=dashboard 或 ?mode=subject)
   if (e && e.parameter && (e.parameter.page === "dashboard" || e.parameter.mode === "subject")) {
     const template = HtmlService.createTemplateFromFile('SubjectDashboard');
     template.isModalDialog = false;
@@ -193,10 +192,11 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
-  // 預設為學生成績查詢頁面
-  return HtmlService.createTemplateFromFile('Index')
-    .evaluate()
-    .setTitle('學生周平時成績查詢系統')
+  // 3. 【核心變更】：預設直接導向教師全功能主控台 (TeacherHub)！
+  const template = HtmlService.createTemplateFromFile('TeacherHub');
+  template.isModalDialog = false;
+  return template.evaluate()
+    .setTitle('教師全功能主控台')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -586,6 +586,8 @@ function onOpen() {
   ui.createMenu("🌟 教師主控台")
     .addItem("🚀 開啟教師全功能主控台 (辨識匯入 / 導師主控 / 科任主控)", "showTeacherHubDialog")
     .addItem("🔗 顯示主控台網頁連結 (可分享至手機/平板)", "showTeacherHubUrlDialog")
+    .addSeparator()
+    .addItem("📱 產生家長查詢端短網址與 QR Code (安全無教師頁)", "showParentShareDialog")
     .addToUi();
 
   ui.createMenu("🏫 導師成績管理")
@@ -4585,4 +4587,104 @@ function verifyTeacherPin(inputPin) {
   } catch (err) {
     return { success: false, message: "驗證過程發生錯誤：" + err.message };
   }
+}
+
+
+
+/**
+ * 取得家長/學生專屬成績查詢網址、短網址與 QR Code 圖片連結
+ * @returns {Object} { parentUrl, shortUrl, qrCodeUrl }
+ */
+function getParentShareInfo() {
+  let rawBaseUrl = "";
+  try {
+    rawBaseUrl = ScriptApp.getService().getUrl();
+  } catch (e) {
+    rawBaseUrl = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
+  }
+
+  // 組裝家長專屬查詢網址 (帶有 view=student 參數，確保只會開啟 Index.html)
+  const separator = rawBaseUrl.includes("?") ? "&" : "?";
+  const parentUrl = rawBaseUrl + separator + "view=student";
+
+  // 嘗試透過 TinyURL API 縮短網址
+  let shortUrl = parentUrl;
+  try {
+    const tinyApi = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(parentUrl)}`;
+    const resp = UrlFetchApp.fetch(tinyApi, { muteHttpExceptions: true });
+    if (resp.getResponseCode() === 200) {
+      const txt = resp.getContentText().trim();
+      if (txt.startsWith("http")) {
+        shortUrl = txt;
+      }
+    }
+  } catch (err) {
+    Logger.log("TinyURL 縮短失敗，使用原網址: " + err.message);
+  }
+
+  // 高清晰度 QR Code 圖片 URL (尺寸 350x350)
+  const targetForQr = shortUrl || parentUrl;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=${encodeURIComponent(targetForQr)}`;
+
+  return {
+    parentUrl: parentUrl,
+    shortUrl: shortUrl,
+    qrCodeUrl: qrCodeUrl
+  };
+}
+
+/**
+ * 試算表選單呼叫：開啟「分享家長查詢端 (短網址 & QR Code)」對話框
+ */
+function showParentShareDialog() {
+  const share = getParentShareInfo();
+  const html = HtmlService.createHtmlOutput(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <base target="_top">
+        <meta charset="utf-8">
+        <style>
+          body { font-family: "Microsoft JhengHei", Arial, sans-serif; padding: 20px; text-align: center; margin: 0; background: #f8fafc; }
+          .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+          .qr-img { width: 220px; height: 220px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px; }
+          .url-input { width: 100%; padding: 10px; font-size: 14px; font-weight: bold; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; text-align: center; margin-bottom: 10px; background: #f1f5f9; }
+          .btn-group { display: flex; gap: 8px; justify-content: center; }
+          .btn { padding: 8px 16px; border-radius: 6px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
+          .btn-primary { background: #2563eb; color: white; }
+          .btn-success { background: #10b981; color: white; }
+          .tip { font-size: 12px; color: #64748b; margin-top: 15px; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h3 style="margin-top:0; color:#1e293b;">📱 家長/學生成績查詢專屬端</h3>
+          <p style="font-size:13px; color:#64748b; margin-top:-5px;">家長掃描此 QR Code 僅能查詢學生成績，完全無法存取教師主控版！</p>
+          
+          <img src="${share.qrCodeUrl}" alt="家長端查詢 QR Code" class="qr-img">
+          
+          <input type="text" id="shareUrl" class="url-input" value="${share.shortUrl}" readonly>
+          
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="copyUrl()">📋 複製短網址</button>
+            <a href="${share.shortUrl}" target="_blank" style="text-decoration:none;"><button class="btn btn-success">🚀 測試開啟</button></a>
+          </div>
+
+          <div class="tip">
+            💡 老師可直接列印此 QR Code 貼在聯絡簿或班級教室公布欄，方便家長手機一掃即查。
+          </div>
+        </div>
+        <script>
+          function copyUrl() {
+            const input = document.getElementById('shareUrl');
+            input.select();
+            navigator.clipboard.writeText(input.value);
+            alert('已成功複製家長端短網址！');
+          }
+        </script>
+      </body>
+    </html>
+  `).setWidth(440).setHeight(500);
+
+  SpreadsheetApp.getUi().showModalDialog(html, "📱 分享家長查詢端 (QR Code)");
 }
