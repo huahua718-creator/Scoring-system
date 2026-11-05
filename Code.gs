@@ -585,9 +585,6 @@ function onOpen() {
   
   ui.createMenu("🌟 教師主控台")
     .addItem("🚀 開啟教師全功能主控台 (辨識匯入 / 導師主控 / 科任主控)", "showTeacherHubDialog")
-    .addItem("🔗 顯示主控台網頁連結 (可分享至手機/平板)", "showTeacherHubUrlDialog")
-    .addSeparator()
-    .addItem("📱 產生家長查詢端短網址與 QR Code (安全無教師頁)", "showParentShareDialog")
     .addSeparator()
     .addItem("📖 產生/更新系統操作說明與範本分頁", "generateSystemManualSheet")
     .addToUi();
@@ -3482,8 +3479,6 @@ function generateSystemManualSheet() {
   const menuData = [
     ["選單分類", "功能項目", "操作說明與適用情境", "", "", "", "", ""],
     ["🌟 教師主控台", "🚀 開啟教師全功能主控台", "直接彈出 TeacherHub 整合工作站，免輸入 PIN 碼即可使用 AI 辨識、導師主控與科任跨班分析。", "", "", "", "", ""],
-    ["", "🔗 顯示主控台網頁連結", "取得部署後的 Web App 完整網址與 PIN 碼，適合在平板、筆電或手機直接瀏覽使用。", "", "", "", "", ""],
-    ["", "📱 產生家長查詢端短網址與 QR Code", "產生家長專屬安全短網址 (?view=student) 與 350x350 QR Code，支援一鍵下載、列印海報與小卡。", "", "", "", "", ""],
     ["", "📖 產生/更新系統操作說明與範本分頁", "隨時點選此項目即可一鍵在此試算表中自動建立或覆蓋更新本操作手冊分頁。", "", "", "", "", ""],
     ["🏫 導師成績管理", "📥 執行每日匯入 (自動路由分頁)", "掃描 Google Drive 上傳區手寫照片與 Excel 檔，AI 辨識後自動歸檔並寄送 Gmail 通知。", "", "", "", "", ""],
     ["", "📥 匯入當前分頁成績至導師總表", "專任登記分頁（如 101理化）後，點選此項目自動比對 A1 防呆寫入導師總表。", "", "", "", "", ""],
@@ -4860,22 +4855,7 @@ function showTeacherHubDialog() {
   SpreadsheetApp.getUi().showModalDialog(html, "🌟 教師全功能主控台");
 }
 
-/**
- * 試算表選單呼叫：顯示教師主控台網頁連結
- */
-function showTeacherHubUrlDialog() {
-  const url = ScriptApp.getService().getUrl() + "?page=teacher";
-  const html = HtmlService.createHtmlOutput(`
-    <div style="font-family:sans-serif; padding:15px; text-align:center;">
-      <p style="font-size:16px; font-weight:bold; margin-bottom:12px;">🌟 教師全功能主控台網頁連結</p>
-      <input type="text" value="${url}" readonly style="width:100%; padding:8px; font-size:14px; box-sizing:border-box; margin-bottom:15px;" id="urlInput">
-      <br>
-      <button onclick="navigator.clipboard.writeText(document.getElementById('urlInput').value); alert('已複製連結！');" style="padding:8px 16px; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">📋 複製連結</button>
-      <a href="${url}" target="_blank" style="display:inline-block; margin-left:10px; padding:8px 16px; background:#10b981; color:white; text-decoration:none; border-radius:4px; font-size:14px;">🚀 直接開啟網頁</a>
-    </div>
-  `).setWidth(450).setHeight(180);
-  SpreadsheetApp.getUi().showModalDialog(html, "教師主控台網址");
-}
+
 
 
 
@@ -4948,58 +4928,4 @@ function getParentShareInfo() {
   };
 }
 
-/**
- * 試算表選單呼叫：開啟「分享家長查詢端 (短網址 & QR Code)」對話框
- */
-function showParentShareDialog() {
-  const share = getParentShareInfo();
-  const html = HtmlService.createHtmlOutput(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <base target="_top">
-        <meta charset="utf-8">
-        <style>
-          body { font-family: "Microsoft JhengHei", Arial, sans-serif; padding: 20px; text-align: center; margin: 0; background: #f8fafc; }
-          .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-          .qr-img { width: 220px; height: 220px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px; }
-          .url-input { width: 100%; padding: 10px; font-size: 14px; font-weight: bold; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; text-align: center; margin-bottom: 10px; background: #f1f5f9; }
-          .btn-group { display: flex; gap: 8px; justify-content: center; }
-          .btn { padding: 8px 16px; border-radius: 6px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
-          .btn-primary { background: #2563eb; color: white; }
-          .btn-success { background: #10b981; color: white; }
-          .tip { font-size: 12px; color: #64748b; margin-top: 15px; line-height: 1.5; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h3 style="margin-top:0; color:#1e293b;">📱 家長/學生成績查詢專屬端</h3>
-          <p style="font-size:13px; color:#64748b; margin-top:-5px;">家長掃描此 QR Code 僅能查詢學生成績，完全無法存取教師主控版！</p>
-          
-          <img src="${share.qrCodeUrl}" alt="家長端查詢 QR Code" class="qr-img">
-          
-          <input type="text" id="shareUrl" class="url-input" value="${share.shortUrl}" readonly>
-          
-          <div class="btn-group">
-            <button class="btn btn-primary" onclick="copyUrl()">📋 複製短網址</button>
-            <a href="${share.shortUrl}" target="_blank" style="text-decoration:none;"><button class="btn btn-success">🚀 測試開啟</button></a>
-          </div>
 
-          <div class="tip">
-            💡 老師可直接列印此 QR Code 貼在聯絡簿或班級教室公布欄，方便家長手機一掃即查。
-          </div>
-        </div>
-        <script>
-          function copyUrl() {
-            const input = document.getElementById('shareUrl');
-            input.select();
-            navigator.clipboard.writeText(input.value);
-            alert('已成功複製家長端短網址！');
-          }
-        </script>
-      </body>
-    </html>
-  `).setWidth(440).setHeight(500);
-
-  SpreadsheetApp.getUi().showModalDialog(html, "📱 分享家長查詢端 (QR Code)");
-}

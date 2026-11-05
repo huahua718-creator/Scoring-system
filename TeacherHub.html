@@ -6,57 +6,152 @@
     {
       "isModalDialog": <?= typeof isModalDialog !== 'undefined' && isModalDialog ? true : false ?>
     }
-  
+  </script>
+
+  <script>
     /* ==============================================================
        家長查詢端分享 (短網址 & QR Code) 模組
     ============================================================== */
     let parentShareData = null;
 
+    // 解析取得當前最精確的 Web App 基礎網址
+    function resolveBaseWebAppUrl() {
+      try {
+        const full = window.location.href;
+        if (full && full.includes("script.google.com/macros/s/")) {
+          const match = full.match(/(https:\/\/script\.google\.com\/macros\/s\/[^\/\?\#]+)/);
+          if (match) {
+            return match[1] + "/exec";
+          }
+        }
+      } catch (e) {}
+      return "";
+    }
+
     function openParentShareModal() {
       const modal = document.getElementById('parentShareModal');
-      modal.style.display = 'flex';
+      if (modal) modal.style.display = 'flex';
 
+      // 1. 若已經有快取資料，直接套用
       if (parentShareData) {
         applyParentShareData(parentShareData);
         return;
       }
 
-      showLoading("正在產生家長端安全短網址與 QR Code...");
-      google.script.run
-        .withSuccessHandler(data => {
-          hideLoading();
-          if (data) {
-            parentShareData = data;
-            applyParentShareData(data);
-          }
-        })
-        .withFailureHandler(err => {
-          hideLoading();
-          alert("產生短網址失敗: " + err.message);
-        })
-        .getParentShareInfo();
+      // 2. 優先嘗試從當前瀏覽器 window.location.href 快速解析
+      const clientBase = resolveBaseWebAppUrl();
+      if (clientBase) {
+        const parentUrl = clientBase + "?view=student";
+        const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=" + encodeURIComponent(parentUrl);
+        parentShareData = {
+          parentUrl: parentUrl,
+          shortUrl: parentUrl,
+          qrCodeUrl: qrUrl
+        };
+        applyParentShareData(parentShareData);
+        // 嘗試非同步向 TinyURL 縮短
+        tryFetchTinyUrl(parentUrl);
+        return;
+      }
+
+      // 3. 若為對話框 (iframe)，則向後端請求 getParentShareInfo
+      if (typeof showLoading === 'function') showLoading("正在產生家長端安全短網址與 QR Code...");
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(data => {
+            if (typeof hideLoading === 'function') hideLoading();
+            if (data) {
+              parentShareData = data;
+              applyParentShareData(data);
+            }
+          })
+          .withFailureHandler(err => {
+            if (typeof hideLoading === 'function') hideLoading();
+            alert("產生短網址失敗: " + err.message);
+          })
+          .getParentShareInfo();
+      } else {
+        if (typeof hideLoading === 'function') hideLoading();
+      }
+    }
+
+    function tryFetchTinyUrl(parentUrl) {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(data => {
+            if (data && data.shortUrl && data.shortUrl.startsWith("http")) {
+              if (!parentShareData) parentShareData = {};
+              parentShareData.shortUrl = data.shortUrl;
+              const input = document.getElementById('shareShortUrlInput');
+              if (input) input.value = data.shortUrl;
+              const shortQr = "https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=" + encodeURIComponent(data.shortUrl);
+              parentShareData.qrCodeUrl = shortQr;
+              const qrImg = document.getElementById('shareQrImg');
+              if (qrImg) qrImg.src = shortQr;
+              const dlBtn = document.getElementById('btnDownloadQr');
+              if (dlBtn) dlBtn.href = shortQr;
+            }
+          })
+          .getParentShareInfo();
+      }
     }
 
     function applyParentShareData(data) {
-      document.getElementById('shareQrImg').src = data.qrCodeUrl;
-      document.getElementById('shareShortUrlInput').value = data.shortUrl;
-      document.getElementById('btnDownloadQr').href = data.qrCodeUrl;
+      const qrImg = document.getElementById('shareQrImg');
+      const urlInput = document.getElementById('shareShortUrlInput');
+      const downloadBtn = document.getElementById('btnDownloadQr');
+      if (qrImg) qrImg.src = data.qrCodeUrl;
+      if (urlInput) urlInput.value = data.shortUrl || data.parentUrl;
+      if (downloadBtn) downloadBtn.href = data.qrCodeUrl;
     }
 
     function closeParentShareModal(e) {
-      document.getElementById('parentShareModal').style.display = 'none';
+      const modal = document.getElementById('parentShareModal');
+      if (modal) modal.style.display = 'none';
     }
 
     function copyShareUrl() {
       const input = document.getElementById('shareShortUrlInput');
+      if (!input) return;
       input.select();
-      navigator.clipboard.writeText(input.value);
-      alert("✅ 已成功複製家長端查詢短網址！");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(() => {
+          alert("✅ 已成功複製家長端查詢短網址！");
+        }).catch(() => {
+          document.execCommand("copy");
+          alert("✅ 已成功複製家長端查詢短網址！");
+        });
+      } else {
+        document.execCommand("copy");
+        alert("✅ 已成功複製家長端查詢短網址！");
+      }
+    }
+
+    function onShareUrlManualChange() {
+      const input = document.getElementById('shareShortUrlInput');
+      if (!input) return;
+      const url = input.value.trim();
+      if (url) {
+        const newQr = "https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=" + encodeURIComponent(url);
+        const qrImg = document.getElementById('shareQrImg');
+        if (qrImg) qrImg.src = newQr;
+        const dlBtn = document.getElementById('btnDownloadQr');
+        if (dlBtn) dlBtn.href = newQr;
+        if (!parentShareData) parentShareData = {};
+        parentShareData.shortUrl = url;
+        parentShareData.parentUrl = url;
+        parentShareData.qrCodeUrl = newQr;
+      }
     }
 
     function printParentSharePoster() {
       if (!parentShareData) return;
       const printWin = window.open('', '_blank');
+      if (!printWin) {
+        alert("請允許快顯視窗以進行列印！");
+        return;
+      }
+      const targetUrl = parentShareData.shortUrl || parentShareData.parentUrl;
       const html = `
         <!DOCTYPE html>
         <html>
@@ -64,13 +159,13 @@
           <meta charset="utf-8">
           <title>學生成績查詢專屬 QR Code</title>
           <style>
-            body { font-family: "Microsoft JhengHei", Arial, sans-serif; text-align: center; padding: 40px; margin: 0; }
+            body { font-family: "Microsoft JhengHei", Arial, sans-serif; text-align: center; padding: 40px; margin: 0; background: #fff; }
             .poster { border: 3px dashed #2563eb; border-radius: 16px; padding: 30px; max-width: 500px; margin: auto; }
             h1 { font-size: 26px; color: #1e293b; margin-top: 0; }
             p { font-size: 15px; color: #475569; line-height: 1.6; }
             .qr-box { margin: 24px 0; }
             .qr-box img { width: 260px; height: 260px; border-radius: 8px; border: 1px solid #e2e8f0; }
-            .url-text { font-size: 16px; font-weight: bold; color: #2563eb; background: #eff6ff; padding: 10px; border-radius: 6px; word-break: break-all; }
+            .url-text { font-size: 15px; font-weight: bold; color: #2563eb; background: #eff6ff; padding: 10px; border-radius: 6px; word-break: break-all; }
             .footer-tip { font-size: 13px; color: #94a3b8; margin-top: 20px; }
           </style>
         </head>
@@ -81,7 +176,7 @@
             <div class="qr-box">
               <img src="${parentShareData.qrCodeUrl}" alt="QR Code">
             </div>
-            <div class="url-text">${parentShareData.shortUrl}</div>
+            <div class="url-text">${targetUrl}</div>
             <div class="footer-tip">※ 本網址為學生/家長查詢專用通道，請妥善保管學生個人密碼。</div>
           </div>
         </body>
@@ -90,7 +185,6 @@
       printWin.document.write(html);
       printWin.document.close();
     }
-
   </script>
   <base target="_top">
   <meta charset="utf-8">
@@ -1860,10 +1954,11 @@
         <img id="shareQrImg" src="" alt="家長端查詢 QR Code" style="width:230px; height:230px; display:block; border-radius:6px; margin:auto;">
       </div>
 
-      <div style="display:flex; gap:8px; margin-bottom:12px;">
-        <input type="text" id="shareShortUrlInput" readonly style="flex:1; padding:8px 12px; font-size:14px; font-weight:bold; border:1px solid #cbd5e1; border-radius:6px; text-align:center; background:#f1f5f9;">
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <input type="text" id="shareShortUrlInput" oninput="onShareUrlManualChange()" placeholder="家長端查詢網址" style="flex:1; padding:8px 12px; font-size:14px; font-weight:bold; border:1px solid #cbd5e1; border-radius:6px; text-align:center; background:#ffffff;">
         <button class="btn btn-primary" onclick="copyShareUrl()">📋 複製</button>
       </div>
+      <div style="font-size:11px; color:#64748b; margin-bottom:12px;">（若網址需微調，可直接在上方修改，QR Code 將即時連動更新）</div>
 
       <div style="display:flex; gap:8px; justify-content:center;">
         <a id="btnDownloadQr" href="" download="學生成績查詢_QRCode.png" target="_blank" style="text-decoration:none;">
