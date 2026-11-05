@@ -10,7 +10,7 @@
 
   <script>
     /* ==============================================================
-       家長查詢端分享 (短網址 & QR Code) 模組
+       家長查詢端分享 (專屬網址 & QR Code) 模組
     ============================================================== */
     let parentShareData = null;
 
@@ -45,17 +45,14 @@
         const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=" + encodeURIComponent(parentUrl);
         parentShareData = {
           parentUrl: parentUrl,
-          shortUrl: parentUrl,
           qrCodeUrl: qrUrl
         };
         applyParentShareData(parentShareData);
-        // 嘗試非同步向 TinyURL 縮短
-        tryFetchTinyUrl(parentUrl);
         return;
       }
 
       // 3. 若為對話框 (iframe)，則向後端請求 getParentShareInfo
-      if (typeof showLoading === 'function') showLoading("正在產生家長端安全短網址與 QR Code...");
+      if (typeof showLoading === 'function') showLoading("正在產生家長端安全查詢網址與 QR Code...");
       if (typeof google !== 'undefined' && google.script && google.script.run) {
         google.script.run
           .withSuccessHandler(data => {
@@ -67,32 +64,11 @@
           })
           .withFailureHandler(err => {
             if (typeof hideLoading === 'function') hideLoading();
-            alert("產生短網址失敗: " + err.message);
+            alert("取得家長端網址失敗: " + err.message);
           })
           .getParentShareInfo();
       } else {
         if (typeof hideLoading === 'function') hideLoading();
-      }
-    }
-
-    function tryFetchTinyUrl(parentUrl) {
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(data => {
-            if (data && data.shortUrl && data.shortUrl.startsWith("http")) {
-              if (!parentShareData) parentShareData = {};
-              parentShareData.shortUrl = data.shortUrl;
-              const input = document.getElementById('shareShortUrlInput');
-              if (input) input.value = data.shortUrl;
-              const shortQr = "https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=" + encodeURIComponent(data.shortUrl);
-              parentShareData.qrCodeUrl = shortQr;
-              const qrImg = document.getElementById('shareQrImg');
-              if (qrImg) qrImg.src = shortQr;
-              const dlBtn = document.getElementById('btnDownloadQr');
-              if (dlBtn) dlBtn.href = shortQr;
-            }
-          })
-          .getParentShareInfo();
       }
     }
 
@@ -101,7 +77,7 @@
       const urlInput = document.getElementById('shareShortUrlInput');
       const downloadBtn = document.getElementById('btnDownloadQr');
       if (qrImg) qrImg.src = data.qrCodeUrl;
-      if (urlInput) urlInput.value = data.shortUrl || data.parentUrl;
+      if (urlInput) urlInput.value = data.parentUrl || data.shortUrl || "";
       if (downloadBtn) downloadBtn.href = data.qrCodeUrl;
     }
 
@@ -116,14 +92,14 @@
       input.select();
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(input.value).then(() => {
-          alert("✅ 已成功複製家長端查詢短網址！");
+          alert("✅ 已成功複製家長端查詢網址！");
         }).catch(() => {
           document.execCommand("copy");
-          alert("✅ 已成功複製家長端查詢短網址！");
+          alert("✅ 已成功複製家長端查詢網址！");
         });
       } else {
         document.execCommand("copy");
-        alert("✅ 已成功複製家長端查詢短網址！");
+        alert("✅ 已成功複製家長端查詢網址！");
       }
     }
 
@@ -138,7 +114,6 @@
         const dlBtn = document.getElementById('btnDownloadQr');
         if (dlBtn) dlBtn.href = newQr;
         if (!parentShareData) parentShareData = {};
-        parentShareData.shortUrl = url;
         parentShareData.parentUrl = url;
         parentShareData.qrCodeUrl = newQr;
       }
@@ -151,7 +126,7 @@
         alert("請允許快顯視窗以進行列印！");
         return;
       }
-      const targetUrl = parentShareData.shortUrl || parentShareData.parentUrl;
+      const targetUrl = parentShareData.parentUrl || "";
       const html = `
         <!DOCTYPE html>
         <html>
@@ -1936,7 +1911,7 @@
 
   </main>
 
-  <!-- 家長查詢端 QR Code & 短網址分享彈窗 Modal -->
+  <!-- 家長查詢端專屬網址與 QR Code 分享彈窗 Modal -->
   <div id="parentShareModal" class="lightbox-modal" onclick="closeParentShareModal(event)">
     <div class="lightbox-img-box" style="background:white; max-width:440px; border-radius:14px; padding:24px 28px; text-align:center; color:#1e293b;" onclick="event.stopPropagation()">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">

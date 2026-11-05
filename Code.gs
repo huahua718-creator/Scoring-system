@@ -3317,7 +3317,7 @@ function generateSystemManualSheet() {
     ["📸 AI 手寫成績單辨識與線上校對", "批次上傳多張手寫成績單照片，透過 Gemini Vision AI 辨識並在 TeacherHub 網頁直接進行線上編輯校對，一鍵寫入導師總表或專任分頁。", "", "", "", "", "", ""],
     ["📊 導師班級全科主控版", "自動讀取歷史測驗至今日區段，整合多科歷程曲線，班級統計看板（平均/及格率/最高最低/標準差），以及個人 2x2 四大診斷圖表（趨勢、0~6階梯五標、雷達、穩定度）。", "", "", "", "", "", ""],
     ["🔬 科任班級三維度跨班分析", "五碼分頁智慧解析（如國二愛理化），以同年段同科目全體學生為母群計算五標常模堆疊圖；4大預警自動標記清單（危機/退步/波動/進步）；直角90度能力雷達圖與年段頂/均標對照。", "", "", "", "", "", ""],
-    ["🔒 安全 PIN 碼與獨立家長查詢端", "外部存取 TeacherHub 需輸入 TEACHER_PIN（預設 1234，於 System_Settings 自訂）；試算表內部開啟自動免密；家長端專屬安全路由 (?view=student) 支援短網址與 QR Code 分享。", "", "", "", "", "", ""]
+    ["🔒 安全 PIN 碼與獨立家長查詢端", "外部存取 TeacherHub 需輸入 TEACHER_PIN（預設 1234，於 System_Settings 自訂）；試算表內部開啟自動免密；家長端專屬安全路由 (?view=student) 支援專屬網址與 QR Code 分享。", "", "", "", "", "", ""]
   ];
 
   for (let i = 0; i < overviewData.length; i++) {
@@ -3525,7 +3525,7 @@ function generateSystemManualSheet() {
     "1. 📅 測驗日期格式規範：所有分頁的測驗日期（第3列）必須一律填寫為「YYYY-MM-DD」（例如：2026-10-15），以免造成日期排序或區間篩選錯誤。",
     "2. 🛡️ A1 班級防呆機制：導師總表與專任分頁的 A1 儲存格必須填寫正確班級（如 101 或 國二愛），匯入時若與對照表不符將自動攔截，防止成績填錯班級。",
     "3. 🔑 教師安全 PIN 碼：外部瀏覽器開啟 TeacherHub 時預設 PIN 碼為「1234」，可於 [System_Settings] 中的 TEACHER_PIN 自行修改。於試算表選單開啟則免輸 PIN 碼。",
-    "4. 📱 家長分享安全路由：切勿將 TeacherHub 網址直接傳給家長！請務必使用「產生家長查詢端短網址與 QR Code」功能，家長端路徑帶有「?view=student」，完全隔離教師權限。",
+    "4. 📱 家長分享安全路由：切勿將 TeacherHub 網址直接傳給家長！請務必使用「產生家長專屬查詢端 QR Code」功能，家長端路徑帶有「?view=student」，完全隔離教師權限。",
     "5. 🤖 Gemini AI 辨識注意：請確保 [System_Settings] 中的 GEMINI_API_KEY 已填入正確金鑰；拍照時請盡量光線充足、正對成績單平拍，辨識後可於網頁直接校對確認。"
   ];
 
@@ -4887,7 +4887,7 @@ function verifyTeacherPin(inputPin) {
 
 
 /**
- * 取得家長/學生專屬成績查詢網址、短網址與 QR Code 圖片連結
+ * 取得家長/學生專屬成績查詢網址與 QR Code 圖片連結
  * @returns {Object} { parentUrl, shortUrl, qrCodeUrl }
  */
 function getParentShareInfo() {
@@ -4902,28 +4902,12 @@ function getParentShareInfo() {
   const separator = rawBaseUrl.includes("?") ? "&" : "?";
   const parentUrl = rawBaseUrl + separator + "view=student";
 
-  // 嘗試透過 TinyURL API 縮短網址
-  let shortUrl = parentUrl;
-  try {
-    const tinyApi = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(parentUrl)}`;
-    const resp = UrlFetchApp.fetch(tinyApi, { muteHttpExceptions: true });
-    if (resp.getResponseCode() === 200) {
-      const txt = resp.getContentText().trim();
-      if (txt.startsWith("http")) {
-        shortUrl = txt;
-      }
-    }
-  } catch (err) {
-    Logger.log("TinyURL 縮短失敗，使用原網址: " + err.message);
-  }
-
   // 高清晰度 QR Code 圖片 URL (尺寸 350x350)
-  const targetForQr = shortUrl || parentUrl;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=${encodeURIComponent(targetForQr)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=${encodeURIComponent(parentUrl)}`;
 
   return {
     parentUrl: parentUrl,
-    shortUrl: shortUrl,
+    shortUrl: parentUrl, // 保留欄位相容性，直接等於正式網址
     qrCodeUrl: qrCodeUrl
   };
 }
