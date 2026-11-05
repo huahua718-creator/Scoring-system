@@ -3476,6 +3476,39 @@ function getCrossClassAnalytics(groupKey) {
   });
 
   // 3. 跨班指標對照表 (Macro Stats) 計算
+  // 【關鍵修正】：以同年段同科目所有班級學生作為母群，計算全域統一的年段五標基準
+  const allGradeStudentAvgs = [];
+  const gradeCategoryScores = {}; // 類別 -> [全年段學生平均分]
+
+  classesData.forEach(cls => {
+    cls.students.forEach(s => {
+      if (s.avg > 0) allGradeStudentAvgs.push(s.avg);
+      Object.keys(s.categoryAvgs || {}).forEach(cat => {
+        if (!gradeCategoryScores[cat]) gradeCategoryScores[cat] = [];
+        gradeCategoryScores[cat].push(s.categoryAvgs[cat]);
+      });
+    });
+  });
+
+  // 全年段統一五標標準 (年段常模)
+  const gradeFiveTiers = calculateFiveTierPercentiles(allGradeStudentAvgs);
+
+  // 全年段各評量類別五標與均值基準 (供雷達圖背景使用)
+  const gradeCategoryTiers = {};
+  Object.keys(gradeCategoryScores).forEach(cat => {
+    const arr = gradeCategoryScores[cat];
+    const catPObj = calculateFiveTierPercentiles(arr);
+    const catAvg = arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : 0;
+    gradeCategoryTiers[cat] = {
+      top: catPObj.p88,
+      high: catPObj.p75,
+      median: catPObj.p50,
+      low: catPObj.p25,
+      bottom: catPObj.p12,
+      avg: catAvg
+    };
+  });
+
   const macroStats = [];
   let allStudentsTotal = 0;
   let allScoresTotalSum = 0;
@@ -3505,20 +3538,19 @@ function getCrossClassAnalytics(groupKey) {
       homogeneity = { label: "集中 (程度平均)", badge: "badge-success" };
     }
 
-    // 五標分佈
-    const pObj = calculateFiveTierPercentiles(allStudentAvgs);
-    const topCount = allStudentAvgs.filter(a => a >= pObj.p88).length;
-    const bottomCount = allStudentAvgs.filter(a => a <= pObj.p12).length;
+    // 五標分佈：依據「全年段統一五標標準 (年段常模)」統計各班達到頂標與落在底標之比例
+    const topCount = allStudentAvgs.filter(a => a >= gradeFiveTiers.p88).length;
+    const bottomCount = allStudentAvgs.filter(a => a <= gradeFiveTiers.p12).length;
     const topTierRate = n > 0 ? Math.round((topCount / n) * 100) : 0;
     const bottomTierRate = n > 0 ? Math.round((bottomCount / n) * 100) : 0;
 
-    // 梯隊分佈 (頂、前、均、後、底)
+    // 梯隊分佈 (頂標、前標、均標、後標、底標)：以年段標準區分各班五標落點人數
     const tierCounts = { top: 0, high: 0, mid: 0, low: 0, bottom: 0 };
     allStudentAvgs.forEach(s => {
-      if (s >= pObj.p88) tierCounts.top++;
-      else if (s >= pObj.p75) tierCounts.high++;
-      else if (s >= pObj.p50) tierCounts.mid++;
-      else if (s >= pObj.p12) tierCounts.low++;
+      if (s >= gradeFiveTiers.p88) tierCounts.top++;
+      else if (s >= gradeFiveTiers.p75) tierCounts.high++;
+      else if (s >= gradeFiveTiers.p50) tierCounts.mid++;
+      else if (s >= gradeFiveTiers.p25) tierCounts.low++;
       else tierCounts.bottom++;
     });
 
@@ -3548,7 +3580,7 @@ function getCrossClassAnalytics(groupKey) {
       bottomTierRate: bottomTierRate,
       tierCounts: tierCounts,
       tierPercentages: tierPercentages,
-      percentiles: pObj
+      percentiles: gradeFiveTiers
     });
   });
 
@@ -3708,7 +3740,9 @@ function getCrossClassAnalytics(groupKey) {
     macroStats: macroStats,
     trendTests: trendTests,
     classes: classesData,
-    attentionStudents: attentionStudents
+    attentionStudents: attentionStudents,
+    gradeFiveTiers: gradeFiveTiers,
+    gradeCategoryTiers: gradeCategoryTiers
   };
 }
 

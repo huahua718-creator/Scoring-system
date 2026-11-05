@@ -1626,6 +1626,32 @@
 
     <!-- TAB 2: Auto-Alert System -->
     <div id="subtab-alerts" class="tab-panel">
+      <!-- 警示規則說明指引看板 -->
+      <div class="panel-card" style="background:#f8fafc; border-left:4px solid #f59e0b; margin-top:12px; margin-bottom:16px;">
+        <div style="font-weight:bold; font-size:14px; color:#1e293b; margin-bottom:6px;">📌 需關注學生自動預警判斷邏輯與建議行動：</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; font-size:12px; color:#475569;">
+          <div style="background:white; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0;">
+            <b style="color:#dc2626;">🔴 高風險/警訊 (Crisis)</b><br>
+            • 觸發：最新成績未滿50分，或連續2次低於底標 (P12)<br>
+            • 建議：優先列入課後扶弱補救或聯繫導師
+          </div>
+          <div style="background:white; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0;">
+            <b style="color:#d97706;">🟡 顯著退步 (Warning)</b><br>
+            • 觸發：當次分數較個人前3次平均下滑超過 15 分<br>
+            • 建議：個別面談排查觀念盲點或學習瓶頸
+          </div>
+          <div style="background:white; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0;">
+            <b style="color:#9333ea;">⚡ 高波動/不穩定 (Unstable)</b><br>
+            • 觸發：個人歷次測驗標準差 ≥ 18 (忽高忽低)<br>
+            • 建議：檢視觀念是否不紮實（防猜題或臨時抱佛腳）
+          </div>
+          <div style="background:white; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0;">
+            <b style="color:#16a34a;">🟢 顯著進步 (Growth)</b><br>
+            • 觸發：當次分數較個人前3次平均大幅進步 15 分以上<br>
+            • 建議：公開口頭表揚或發放獎勵，維持學習動機
+          </div>
+        </div>
+      </div>
       <div class="panel-card">
         <div class="panel-header">
           <div class="panel-title">⚠️ 需關注學生自動預警標記清單</div>
@@ -3049,16 +3075,25 @@ let currentAnalyticsData = null;
     }
 
     function viewStudentMicro(className, seat) {
-      // 切換至 Tab 3
-      document.querySelectorAll('.tabs .tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.tabs .tab-btn')[2].classList.add('active');
-      document.getElementById('tab-micro').classList.add('active');
+      // 切換至 Tab 3 (個別學生歷程卡)
+      switchSubjectSubTab('micro');
 
-      document.getElementById('microClassSelect').value = className;
-      populateStudentSelect();
-      document.getElementById('microStudentSelect').value = seat;
-      loadStudentMicroData();
+      const classSel = document.getElementById('microClassSelect');
+      if (classSel) {
+        classSel.value = className;
+        populateStudentSelect();
+      }
+      const studentSel = document.getElementById('microStudentSelect');
+      if (studentSel) {
+        studentSel.value = seat;
+        loadStudentMicroData();
+      }
+
+      // 平滑滾動至學生個人歷程卡頂部
+      const targetEl = document.getElementById('studentHeaderBox') || document.getElementById('subtab-micro');
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function loadStudentMicroData() {
@@ -3145,36 +3180,68 @@ let currentAnalyticsData = null;
       if (chartStudentRadar) chartStudentRadar.destroy();
 
       const categories = Object.keys(clsData.categoryAvgs || {});
-      const studentCatData = categories.map(cat => student.categoryAvgs[cat] || 0);
-      const classCatData = categories.map(cat => clsData.categoryAvgs[cat] || 0);
+      const catTiers = (currentAnalyticsData && currentAnalyticsData.gradeCategoryTiers) ? currentAnalyticsData.gradeCategoryTiers : {};
+
+      let rLabels = categories.length > 0 ? [...categories] : ['評量項目'];
+      let rStudent = rLabels.map(cat => student.categoryAvgs[cat] || 0);
+      let rGradeTop = rLabels.map(cat => (catTiers[cat]?.top !== undefined ? catTiers[cat].top : 88));
+      let rGradeMed = rLabels.map(cat => (catTiers[cat]?.median !== undefined ? catTiers[cat].median : 50));
+
+      // 【若項目只有兩個，改為直角 90 度，避免 180 度只剩一條線】
+      if (rLabels.length === 2) {
+        // 加入第 3 軸空白輔助點 (數值 0)，使兩軸夾角形成 90 度直角，拉出直角三角形視覺面積
+        rLabels = [rLabels[0], rLabels[1], " "];
+        rStudent = [rStudent[0], rStudent[1], 0];
+        rGradeTop = [rGradeTop[0], rGradeTop[1], 0];
+        rGradeMed = [rGradeMed[0], rGradeMed[1], 0];
+      }
 
       chartStudentRadar = new Chart(document.getElementById('studentRadarChart'), {
         type: 'radar',
         data: {
-          labels: categories.length > 0 ? categories : ['評量項目'],
+          labels: rLabels,
           datasets: [
             {
               label: `${student.name} 個人平均`,
-              data: studentCatData,
+              data: rStudent,
               borderColor: '#2563eb',
-              backgroundColor: 'rgba(37, 99, 235, 0.25)',
-              borderWidth: 2
+              backgroundColor: 'rgba(37, 99, 235, 0.3)',
+              borderWidth: 2.5,
+              pointBackgroundColor: '#2563eb'
             },
             {
-              label: '全班平均基準',
-              data: classCatData,
-              borderColor: '#94a3b8',
-              backgroundColor: 'rgba(148, 163, 184, 0.15)',
-              borderWidth: 1,
-              borderDash: [4, 4]
+              label: '年段頂標 (P88)',
+              data: rGradeTop,
+              borderColor: '#d97706',
+              borderDash: [4, 4],
+              fill: false,
+              pointBackgroundColor: '#d97706',
+              borderWidth: 1.5
+            },
+            {
+              label: '年段均標 (P50)',
+              data: rGradeMed,
+              borderColor: '#64748b',
+              borderDash: [3, 3],
+              fill: false,
+              pointBackgroundColor: '#64748b',
+              borderWidth: 1.5
             }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          scales: { r: { min: 0, max: 100, ticks: { stepSize: 20 } } },
-          plugins: { legend: { position: 'bottom' } }
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: { stepSize: 20 }
+            }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12 } }
+          }
         }
       });
     }
