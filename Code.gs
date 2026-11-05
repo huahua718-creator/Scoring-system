@@ -29,7 +29,8 @@ function getSystemConfig(suppressError = false) {
     UPLOAD_FOLDER_ID: "",
     BACKUP_FOLDER_ID: "",
     BG_FOLDER_ID: "",
-    LOGO_KEYWORD: "logo"
+    LOGO_KEYWORD: "logo",
+    TEACHER_PIN: "1234"
   };
 
   if (!sheet) {
@@ -3207,6 +3208,7 @@ function initSystemSettingsSheet() {
   // 設定 A:B 欄 (全域系統參數)
   const leftHeaders = [
     ["項目 (Key)", "設定值 (Value)"],
+    ["TEACHER_PIN", "1234"],
     ["GEMINI_API_KEY", ""],
     ["UPLOAD_FOLDER_ID", ""],
     ["BACKUP_FOLDER_ID", ""],
@@ -4498,4 +4500,31 @@ function showTeacherHubUrlDialog() {
     </div>
   `).setWidth(450).setHeight(180);
   SpreadsheetApp.getUi().showModalDialog(html, "教師主控台網址");
+}
+
+
+
+/**
+ * 驗證教師 PIN 碼是否正確
+ * @param {string} inputPin 前端輸入的 PIN 碼
+ * @returns {Object} { success: boolean, message?: string }
+ */
+function verifyTeacherPin(inputPin) {
+  try {
+    const config = getSystemConfig(true);
+    const correctPin = String(config.TEACHER_PIN || "1234").trim();
+    const userPin = String(inputPin || "").trim();
+
+    if (!userPin) {
+      return { success: false, message: "請輸入 PIN 碼！" };
+    }
+
+    if (userPin === correctPin) {
+      return { success: true, message: "驗證成功！" };
+    } else {
+      return { success: false, message: "PIN 碼錯誤，請重新輸入！" };
+    }
+  } catch (err) {
+    return { success: false, message: "驗證過程發生錯誤：" + err.message };
+  }
 }

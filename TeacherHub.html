@@ -576,9 +576,118 @@
       .card { box-shadow: none; border: none; padding: 0; margin-bottom: 20px; }
       .chart-box { height: 260px !important; }
     }
+
+    /* PIN 碼安全驗證鎖定畫面 */
+    .pin-auth-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .pin-card {
+      background: white;
+      border-radius: 14px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.4), 0 8px 10px -6px rgba(0,0,0,0.3);
+      animation: pinFadeIn 0.3s ease-out;
+    }
+    @keyframes pinFadeIn {
+      from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .pin-icon {
+      font-size: 46px;
+      margin-bottom: 12px;
+    }
+    .pin-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 0 0 8px 0;
+    }
+    .pin-desc {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0 0 24px 0;
+      line-height: 1.5;
+    }
+    .pin-input-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 12px 42px 12px 16px;
+      font-size: 18px;
+      letter-spacing: 2px;
+      font-weight: bold;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      text-align: center;
+      box-sizing: border-box;
+      transition: all 0.2s;
+    }
+    .pin-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+      outline: none;
+    }
+    .pin-toggle-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    .pin-error-box {
+      color: #dc2626;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 16px;
+      min-height: 20px;
+    }
+
   </style>
 </head>
 <body>
+
+  <!-- 教師安全驗證 PIN 碼鎖定遮罩 -->
+  <div id="pinAuthOverlay" class="pin-auth-overlay">
+    <div class="pin-card">
+      <div class="pin-icon">🔐</div>
+      <h2 class="pin-title">教師身分安全驗證</h2>
+      <p class="pin-desc">本頁面為成績管理教師主控台，請輸入安全 PIN 碼以解鎖。（如需修改密碼，請至試算表 [System_Settings] 基礎設定分頁設定 TEACHER_PIN）</p>
+      
+      <div class="pin-input-box">
+        <input type="password" id="teacherPinInput" class="pin-input" placeholder="請輸入教師 PIN 碼" maxlength="20" autofocus onkeydown="if(event.key==='Enter') submitTeacherPin()">
+        <button class="pin-toggle-btn" type="button" onclick="togglePinVisibility()">👁️</button>
+      </div>
+
+      <div id="pinErrorBox" class="pin-error-box"></div>
+
+      <button class="btn btn-primary" style="width:100%; padding:12px; font-size:16px; justify-content:center;" onclick="submitTeacherPin()">
+        🔓 驗證並解鎖主控台
+      </button>
+
+      <div style="margin-top:18px; font-size:12px; color:#94a3b8;">
+        🔒 Google Apps Script 安全身分屏障
+      </div>
+    </div>
+  </div>
+
+  <!-- 主控台主應用區塊 (驗證成功後顯示) -->
+  <div id="appContainer" style="display:none;">
 
   <!-- Loading 提示遮罩 -->
   <div id="loadingOverlay" class="loading-overlay">
@@ -626,6 +735,7 @@
     <div class="header-actions">
       <button class="btn-action" onclick="toggleFullScreen()">🖥️ 全螢幕</button>
       <button class="btn-action" onclick="window.print()">🖨️ 列印報表</button>
+      <button class="btn-action" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4);" onclick="lockTeacherHub()">🔒 鎖定登出</button>
     </div>
   </header>
 
@@ -922,6 +1032,7 @@
       </div>
     </div>
   </main>
+  </div><!-- #appContainer -->
 
   <script>
     /* ==============================================================
@@ -968,7 +1079,80 @@
     /* ==============================================================
        頁面初始化
     ============================================================== */
+    const PIN_SESSION_KEY = "teacher_hub_pin_verified_v1";
+
     window.onload = function() {
+      // 檢查是否已於同 Session 通過驗證
+      if (sessionStorage.getItem(PIN_SESSION_KEY) === "true") {
+        unlockApp();
+      } else {
+        document.getElementById('pinAuthOverlay').style.display = "flex";
+        document.getElementById('appContainer').style.display = "none";
+        setTimeout(() => {
+          const inp = document.getElementById('teacherPinInput');
+          if (inp) inp.focus();
+        }, 300);
+      }
+    };
+
+    function togglePinVisibility() {
+      const inp = document.getElementById('teacherPinInput');
+      if (inp.type === "password") {
+        inp.type = "text";
+      } else {
+        inp.type = "password";
+      }
+    }
+
+    function submitTeacherPin() {
+      const pin = document.getElementById('teacherPinInput').value.trim();
+      const errBox = document.getElementById('pinErrorBox');
+      errBox.innerText = "";
+
+      if (!pin) {
+        errBox.innerText = "請輸入 PIN 碼！";
+        return;
+      }
+
+      showLoading("🔐 正在驗證教師身分...");
+      google.script.run
+        .withSuccessHandler(res => {
+          hideLoading();
+          if (res && res.success) {
+            sessionStorage.setItem(PIN_SESSION_KEY, "true");
+            unlockApp();
+          } else {
+            errBox.innerText = res.message || "❌ PIN 碼錯誤，請重新輸入！";
+            document.getElementById('teacherPinInput').value = "";
+            document.getElementById('teacherPinInput').focus();
+          }
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          errBox.innerText = "驗證通訊失敗：" + err.message;
+        })
+        .verifyTeacherPin(pin);
+    }
+
+    function unlockApp() {
+      document.getElementById('pinAuthOverlay').style.display = "none";
+      document.getElementById('appContainer').style.display = "block";
+      initTeacherHubData();
+    }
+
+    function lockTeacherHub() {
+      sessionStorage.removeItem(PIN_SESSION_KEY);
+      document.getElementById('teacherPinInput').value = "";
+      document.getElementById('pinErrorBox').innerText = "";
+      document.getElementById('pinAuthOverlay').style.display = "flex";
+      document.getElementById('appContainer').style.display = "none";
+      setTimeout(() => {
+        const inp = document.getElementById('teacherPinInput');
+        if (inp) inp.focus();
+      }, 200);
+    }
+
+    function initTeacherHubData() {
       // 綁定拖曳事件
       initUploadZoneEvents();
 
@@ -996,7 +1180,7 @@
           console.error("載入系統元資料失敗:", err);
         })
         .getAvailableClassesAndSubjects();
-    };
+    }
 
     function showLoading(msg) {
       document.getElementById('loadingText').innerText = msg || "⏳ 資料載入中，請稍候...";
