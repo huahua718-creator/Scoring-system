@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>清理範本示範資料</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 18px;
+      font-size: 14px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+    .header h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--danger);
+    }
+    .alert-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 12px;
+      color: #991b1b;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .option-item {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .option-item:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+    .option-item input[type="radio"] {
+      margin-top: 3px;
+    }
+    .option-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+    .option-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .confirm-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 14px 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px 18px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #ffffff;
+    }
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+    .btn-danger:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--danger);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <span style="font-size: 26px;">🧹</span>
+    <div>
+      <h2>清理範本示範資料</h2>
+      <p style="margin: 2px 0 0; font-size: 12px; color: var(--text-muted);">一鍵清除推廣示範用假學生與測試成績，恢復為準備正式使用的標準範本</p>
+    </div>
+  </div>
+
+  <div class="alert-box">
+    ⚠️ <b>重要提醒：</b>此動作將會清理試算表內的示範資料（包含王承恩、李詩涵等 30 位測試學生與歷次小考/段考示範成績）。若您在目前試算表有自行登記的重要資料，請務必先進行備份！
+  </div>
+
+  <div class="card">
+    <div style="font-weight: 700; font-size: 13px; margin-bottom: 10px; color: #475569;">請選擇清理模式：</div>
+
+    <label class="option-item">
+      <input type="radio" name="clearMode" value="FULL_RESET" checked>
+      <div>
+        <div class="option-title">🧹 全面清空示範資料（推薦：準備正式使用）</div>
+        <div class="option-desc">
+          • 清空導師總表與所有科任分頁的示範學生姓名與全部測驗成績<br>
+          • 保留標準表頭架構，自動預留 1~40 號空白座號列（姓名為空），方便直接貼上正式名冊<br>
+          • 安全移除「科任跨班分析總表」示範報表
+        </div>
+      </div>
+    </label>
+
+    <label class="option-item">
+      <input type="radio" name="clearMode" value="CLEAR_SCORES_ONLY">
+      <div>
+        <div class="option-title">📝 僅清空歷次測驗與成績（保留名冊）</div>
+        <div class="option-desc">
+          • 保留現有的學生名冊（座號、姓名、查詢密碼）<br>
+          • 僅將所有科目、小考、段考等歷次測驗欄位與成績清空<br>
+          • 適合已填好名冊，欲開新學期重新登記成績
+        </div>
+      </div>
+    </label>
+  </div>
+
+  <div class="confirm-box">
+    <input type="checkbox" id="chkConfirm" onchange="toggleButton()">
+    <label for="chkConfirm" style="cursor: pointer;">我已確認了解，並同意執行範本資料清理</label>
+  </div>
+
+  <button class="btn btn-danger" id="btnExecute" disabled onclick="executeClear()">
+    🗑️ 確認執行清理
+  </button>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="font-weight: 700; color: #1e293b;" id="loadingMsg">正在清理中...</div>
+  </div>
+
+  <script>
+    function toggleButton() {
+      const chk = document.getElementById('chkConfirm');
+      document.getElementById('btnExecute').disabled = !chk.checked;
+    }
+
+    function executeClear() {
+      const mode = document.querySelector('input[name="clearMode"]:checked').value;
+      const loading = document.getElementById('loadingOverlay');
+      loading.style.display = 'flex';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          loading.style.display = 'none';
+          if (res && res.success) {
+            alert(`✅ 清理完成！\n${res.message}\n試算表已轉換為乾淨標準格式，您可以開始正式輸入班級學生名冊或登記成績！`);
+            google.script.host.close();
+          } else {
+            alert("清理失敗: " + (res ? res.message : "未知錯誤"));
+          }
+        })
+        .withFailureHandler(err => {
+          loading.style.display = 'none';
+          alert("執行異常: " + err.message);
+        })
+        .executeClearDemoData(mode);
+    }
+  </script>
+</body>
+</html>

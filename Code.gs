@@ -586,18 +586,23 @@ function onOpen() {
   ui.createMenu("🌟 教師主控台")
     .addItem("🚀 開啟教師全功能主控台 (辨識匯入 / 導師主控 / 科任主控)", "showTeacherHubDialog")
     .addSeparator()
+    .addItem("📥 快速匯入舊成績單 (建立新格式分頁)", "showImportOldScoresDialog")
+    .addItem("🧹 清理範本示範資料 (準備正式使用)", "showClearDemoDataDialog")
+    .addSeparator()
     .addItem("📖 產生/更新系統操作說明與範本分頁", "generateSystemManualSheet")
     .addToUi();
 
   ui.createMenu("🏫 導師成績管理")
     .addItem("📥 執行每日匯入 (自動路由分頁)", "importDailyScores")
     .addItem("📥 匯入當前分頁成績至導師總表 (5字解析比對)", "importSubjectSheetToTutorSheetUI")
+    .addItem("📥 快速匯入舊成績單 (建立新格式分頁)", "showImportOldScoresDialog")
     .addSeparator()
     .addItem("📊 產生指定區間歷史成績單", "showSheetWriteDialog")
     .addItem("🖨️ 匯出區間個人報表 (列印/PDF)", "showBatchReportDialog")
     .addSeparator()
     .addItem("⚙️ 設定科目/類別加權值", "showWeightSettingDialog")
     .addItem("📦 結算並匯出舊學期資料 (開新學期)", "archiveAndResetSemester")
+    .addItem("🧹 清理範本示範資料 (準備正式使用)", "showClearDemoDataDialog")
     .addSeparator()
     .addItem("🛠️ 建立/檢查 [System_Settings] 基礎設定分頁", "initSystemSettingsSheet")
     .addItem("📖 產生/更新系統操作說明與範本分頁", "generateSystemManualSheet")
@@ -3479,6 +3484,8 @@ function generateSystemManualSheet() {
   const menuData = [
     ["選單分類", "功能項目", "操作說明與適用情境", "", "", "", "", ""],
     ["🌟 教師主控台", "🚀 開啟教師全功能主控台", "直接彈出 TeacherHub 整合工作站，免輸入 PIN 碼即可使用 AI 辨識、導師主控與科任跨班分析。", "", "", "", "", ""],
+    ["", "📥 快速匯入舊成績單", "支援本機上傳 Excel 或 Google 試算表，自動轉換為符合新格式之科任分頁或導師總表。", "", "", "", "", ""],
+    ["", "🧹 清理範本示範資料", "一鍵清除 30 位示範假學生名冊與測試成績，恢復為全新空白標準範本，準備正式使用。", "", "", "", "", ""],
     ["", "📖 產生/更新系統操作說明與範本分頁", "隨時點選此項目即可一鍵在此試算表中自動建立或覆蓋更新本操作手冊分頁。", "", "", "", "", ""],
     ["🏫 導師成績管理", "📥 執行每日匯入 (自動路由分頁)", "掃描 Google Drive 上傳區手寫照片與 Excel 檔，AI 辨識後自動歸檔並寄送 Gmail 通知。", "", "", "", "", ""],
     ["", "📥 匯入當前分頁成績至導師總表", "專任登記分頁（如 101理化）後，點選此項目自動比對 A1 防呆寫入導師總表。", "", "", "", "", ""],
@@ -4913,3 +4920,461 @@ function getParentShareInfo() {
 }
 
 
+
+
+// ==========================================
+// 舊成績單快速匯入與格式正規化轉換模組
+// ==========================================
+
+/**
+ * 試算表選單：開啟「快速匯入舊成績單」對話框
+ */
+function showImportOldScoresDialog() {
+  const html = HtmlService.createHtmlOutputFromFile("ImportOldScoresDialog")
+    .setWidth(600)
+    .setHeight(680);
+  SpreadsheetApp.getUi().showModalDialog(html, "📥 快速匯入舊成績單 (自動建立合規新分頁)");
+}
+
+/**
+ * 前端 API：讀取並分析來源成績單 (支援 Base64 上傳之 Excel 或 Google 試算表 URL/ID)
+ * @param {Object} data { sourceType: 'UPLOAD'|'URL', fileData?: { name, base64 }, sourceUrl?: string }
+ * @returns {Object} { success: boolean, sheets?: Array, tempSsId?: string, message?: string }
+ */
+function analyzeOldScoresSource(data) {
+  try {
+    let sourceSS = null;
+    let tempSsId = "";
+    let tempFileId = "";
+
+    if (data.sourceType === "UPLOAD") {
+      if (!data.fileData || !data.fileData.base64) {
+        return { success: false, message: "未接收到上傳檔案資料！" };
+      }
+      const fileName = data.fileData.name || "舊成績單.xlsx";
+      const bytes = Utilities.base64Decode(data.fileData.base64);
+      const blob = Utilities.newBlob(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+      
+      // 在 Google Drive 根目錄建立暫存檔
+      const tempFile = DriveApp.createFile(blob);
+      tempFileId = tempFile.getId();
+
+      // 轉換為 Google 試算表
+      sourceSS = convertExcelToGoogleSheet(tempFileId);
+      tempSsId = sourceSS.getId();
+
+      // 嘗試清理原始上傳之二進位暫存檔
+      try { tempFile.setTrashed(true); } catch(e) {}
+    } else {
+      // 處理 Google 試算表 URL 或 ID
+      let input = String(data.sourceUrl || "").trim();
+      let ssId = input;
+      const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (match) {
+        ssId = match[1];
+      }
+      sourceSS = SpreadsheetApp.openById(ssId);
+    }
+
+    if (!sourceSS) {
+      return { success: false, message: "無法開啟來源試算表！" };
+    }
+
+    const sheets = sourceSS.getSheets();
+    const sheetInfoList = [];
+
+    for (let i = 0; i < sheets.length; i++) {
+      const sh = sheets[i];
+      const sheetName = sh.getName();
+      const lastRow = sh.getLastRow();
+      const lastCol = sh.getLastColumn();
+
+      if (lastRow === 0 || lastCol === 0) continue;
+
+      const previewRowsCount = Math.min(lastRow, 5);
+      const previewColsCount = Math.min(lastCol, 10);
+      const previewData = sh.getRange(1, 1, previewRowsCount, previewColsCount).getDisplayValues();
+
+      let estimatedStudents = Math.max(0, lastRow - 1);
+      let testColsCount = Math.max(0, lastCol - 2);
+
+      sheetInfoList.push({
+        sheetName: sheetName,
+        rowCount: lastRow,
+        colCount: lastCol,
+        estimatedStudents: estimatedStudents,
+        testColsCount: testColsCount,
+        previewRows: previewData
+      });
+    }
+
+    if (sheetInfoList.length === 0) {
+      return { success: false, message: "來源檔案中未找到任何含有資料的工作表！" };
+    }
+
+    return {
+      success: true,
+      sourceType: data.sourceType,
+      sourceIdOrUrl: sourceSS.getId(),
+      tempSsId: tempSsId,
+      sheets: sheetInfoList
+    };
+
+  } catch (err) {
+    Logger.log("analyzeOldScoresSource error: " + err.message);
+    return { success: false, message: "讀取舊成績單時發生錯誤: " + err.message };
+  }
+}
+
+/**
+ * 前端 API：執行將舊成績單轉換為新系統標準格式分頁
+ * @param {Object} params 設定參數
+ * @returns {Object} { success: boolean, newSheetName?: string, studentsCount?: number, testsCount?: number, message?: string }
+ */
+function executeImportOldScores(params) {
+  try {
+    const activeSS = SpreadsheetApp.getActiveSpreadsheet();
+    let sourceSS = null;
+
+    if (params.tempSsId) {
+      sourceSS = SpreadsheetApp.openById(params.tempSsId);
+    } else if (params.sourceIdOrUrl) {
+      sourceSS = SpreadsheetApp.openById(params.sourceIdOrUrl);
+    } else {
+      return { success: false, message: "遺失來源試算表識別資訊！" };
+    }
+
+    const sourceSheet = sourceSS.getSheetByName(params.sourceSheetName);
+    if (!sourceSheet) {
+      return { success: false, message: "找不到指定來源工作表: " + params.sourceSheetName };
+    }
+
+    const allValues = sourceSheet.getDataRange().getValues();
+    const allDisplays = sourceSheet.getDataRange().getDisplayValues();
+    if (allValues.length < 2) {
+      return { success: false, message: "來源工作表資料行數不足！" };
+    }
+
+    // 1. 尋找座號與姓名欄位
+    let seatCol = -1;
+    let nameCol = -1;
+    let headerRow = -1;
+
+    for (let r = 0; r < Math.min(allDisplays.length, 5); r++) {
+      for (let c = 0; c < allDisplays[r].length; c++) {
+        const val = String(allDisplays[r][c]).trim();
+        if (/^(座號|號碼|No\.?|號|學號)$/i.test(val) && seatCol === -1) {
+          seatCol = c;
+          headerRow = r;
+        }
+        if (/^(姓名|學生姓名|學生|Name)$/i.test(val) && nameCol === -1) {
+          nameCol = c;
+          if (headerRow === -1) headerRow = r;
+        }
+      }
+      if (seatCol !== -1 && nameCol !== -1) break;
+    }
+
+    if (seatCol === -1) seatCol = 0;
+    if (nameCol === -1) nameCol = 1;
+    if (headerRow === -1) headerRow = 0;
+
+    const studentStartRow = headerRow + 1;
+
+    // 2. 收集學生名單
+    const students = [];
+    for (let r = studentStartRow; r < allDisplays.length; r++) {
+      const rawSeat = String(allDisplays[r][seatCol]).trim();
+      const rawName = String(allDisplays[r][nameCol]).trim();
+      if (!rawSeat && !rawName) continue;
+      
+      let seatNum = parseInt(rawSeat, 10);
+      if (isNaN(seatNum)) seatNum = students.length + 1;
+      
+      const studentName = rawName || ("學生" + seatNum);
+      students.push({
+        seat: seatNum,
+        name: studentName,
+        sourceRowIdx: r
+      });
+    }
+
+    if (students.length === 0) {
+      return { success: false, message: "未能從來源表格解析出任何有效學生資料！" };
+    }
+
+    // 3. 識別測驗欄位
+    const testCols = [];
+    const maxCols = allValues[0].length;
+    for (let c = 0; c < maxCols; c++) {
+      if (c === seatCol || c === nameCol) continue;
+      
+      const rawHeader = String(allDisplays[headerRow][c] || "").trim();
+      if (!rawHeader) continue;
+      if (/^(總分|加權總分|平均|學期成績|名次|排名|備註|備註欄)$/.test(rawHeader)) continue;
+
+      let testCategory = "";
+      let testScope = rawHeader;
+      let testDate = params.defaultDate || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd");
+
+      if (headerRow >= 2) {
+        const potentialDate = String(allDisplays[headerRow][c]).trim();
+        const dateMatch = potentialDate.match(/\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/);
+        if (dateMatch) {
+          testDate = dateMatch[0].replace(/\//g, "-");
+          testScope = String(allDisplays[headerRow - 1][c] || rawHeader).trim();
+          testCategory = String(allDisplays[headerRow - 2][c] || "").trim();
+        }
+      }
+
+      if (!testCategory) {
+        if (params.targetType === "SUBJECT") {
+          if (/段考|定期|期中|期末/.test(rawHeader)) {
+            testCategory = /第一次/.test(rawHeader) ? "第一次段考" : (/第二次/.test(rawHeader) ? "第二次段考" : "定期評量");
+          } else if (/隨堂|隨測|抽測/.test(rawHeader)) {
+            testCategory = "隨堂測驗";
+          } else if (/週考|大考/.test(rawHeader)) {
+            testCategory = "全校週考";
+          } else {
+            testCategory = "平時小考";
+          }
+        } else {
+          testCategory = params.subjectName || "平時測驗";
+        }
+      }
+
+      testCols.push({
+        colIdx: c,
+        category: testCategory,
+        scope: testScope,
+        date: testDate
+      });
+    }
+
+    if (testCols.length === 0) {
+      return { success: false, message: "未能從來源表格辨識出任何測驗或科目成績欄位！" };
+    }
+
+    // 4. 建立新分頁
+    let targetSheetName = params.newSheetName.trim();
+    let targetSheet = activeSS.getSheetByName(targetSheetName);
+    if (targetSheet) {
+      targetSheetName = targetSheetName + "_" + Utilities.formatDate(new Date(), "GMT+8", "MMdd_HHmm");
+    }
+    targetSheet = activeSS.insertSheet(targetSheetName);
+
+    const COLOR_BADGE = "#BEE3F8";
+    const COLOR_HEADER = "#4A5568";
+    const COLOR_CAT = "#C6F6D5";
+    const COLOR_SCOPE = "#E2E8F0";
+    const COLOR_DATE = "#FEEBC8";
+    const COLOR_ROW_ALT = "#F7FAFC";
+
+    const isSubject = (params.targetType === "SUBJECT");
+    const totalCols = (isSubject ? 3 : 3) + testCols.length;
+    const totalRows = 3 + students.length;
+
+    // 5. 填寫表頭
+    if (isSubject) {
+      targetSheet.getRange(1, 1).setValue(params.className).setBackground(COLOR_BADGE).setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(1, 2).setValue("座號").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(1, 3).setValue("姓名").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+
+      targetSheet.getRange(2, 1, 1, 3).setValues([["-", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
+      targetSheet.getRange(3, 1, 1, 3).setValues([["-", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
+
+      for (let t = 0; t < testCols.length; t++) {
+        const col = 4 + t;
+        targetSheet.getRange(1, col).setValue(testCols[t].category).setBackground(COLOR_CAT).setFontWeight("bold").setHorizontalAlignment("center");
+        targetSheet.getRange(2, col).setValue(testCols[t].scope).setBackground(COLOR_SCOPE).setHorizontalAlignment("center");
+        targetSheet.getRange(3, col).setValue(testCols[t].date).setBackground(COLOR_DATE).setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
+      }
+
+      const dataRows = [];
+      for (let i = 0; i < students.length; i++) {
+        const st = students[i];
+        const row = [st.seat, st.name];
+        for (let t = 0; t < testCols.length; t++) {
+          const rawScore = allValues[st.sourceRowIdx][testCols[t].colIdx];
+          const numScore = parseFloat(rawScore);
+          row.push(!isNaN(numScore) ? numScore : (rawScore !== "" ? rawScore : ""));
+        }
+        dataRows.push(row);
+      }
+      targetSheet.getRange(4, 2, dataRows.length, dataRows[0].length).setValues(dataRows);
+      const classColVals = Array(students.length).fill([params.className]);
+      targetSheet.getRange(4, 1, students.length, 1).setValues(classColVals).setHorizontalAlignment("center");
+
+    } else {
+      targetSheet.getRange(1, 1).setValue(params.className).setBackground(COLOR_BADGE).setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(1, 2).setValue("座號").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(1, 3).setValue("姓名").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+
+      targetSheet.getRange(2, 1, 1, 3).setValues([["密碼", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
+      targetSheet.getRange(3, 1, 1, 3).setValues([["身分識別", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
+
+      for (let t = 0; t < testCols.length; t++) {
+        const col = 4 + t;
+        targetSheet.getRange(1, col).setValue(testCols[t].category).setBackground(COLOR_CAT).setFontWeight("bold").setHorizontalAlignment("center");
+        targetSheet.getRange(2, col).setValue(testCols[t].scope).setBackground(COLOR_SCOPE).setHorizontalAlignment("center");
+        targetSheet.getRange(3, col).setValue(testCols[t].date).setBackground(COLOR_DATE).setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
+      }
+
+      const dataRows = [];
+      for (let i = 0; i < students.length; i++) {
+        const st = students[i];
+        const pwd = String(1000 + st.seat);
+        const row = [pwd, st.seat, st.name];
+        for (let t = 0; t < testCols.length; t++) {
+          const rawScore = allValues[st.sourceRowIdx][testCols[t].colIdx];
+          const numScore = parseFloat(rawScore);
+          row.push(!isNaN(numScore) ? numScore : (rawScore !== "" ? rawScore : ""));
+        }
+        dataRows.push(row);
+      }
+      targetSheet.getRange(4, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
+    }
+
+    const fullRange = targetSheet.getRange(1, 1, totalRows, 3 + testCols.length);
+    fullRange.setBorder(true, true, true, true, true, true, "#CBD5E0", SpreadsheetApp.BorderStyle.SOLID);
+    targetSheet.getRange(4, 1, students.length, fullRange.getNumColumns()).setHorizontalAlignment("center");
+
+    for (let r = 4; r <= totalRows; r++) {
+      if (r % 2 === 0) {
+        targetSheet.getRange(r, 1, 1, fullRange.getNumColumns()).setBackground(COLOR_ROW_ALT);
+      }
+    }
+
+    targetSheet.autoResizeColumns(1, fullRange.getNumColumns());
+
+    if (params.tempSsId) {
+      try { DriveApp.getFileById(params.tempSsId).setTrashed(true); } catch(e) {}
+    }
+
+    activeSS.setActiveSheet(targetSheet);
+
+    return {
+      success: true,
+      newSheetName: targetSheetName,
+      studentsCount: students.length,
+      testsCount: testCols.length
+    };
+
+  } catch (err) {
+    Logger.log("executeImportOldScores error: " + err.message);
+    return { success: false, message: "轉換匯入失敗: " + err.message };
+  }
+}
+
+// ==========================================
+// 範本示範資料清理模組
+// ==========================================
+
+/**
+ * 試算表選單：開啟「清理範本示範資料」對話框
+ */
+function showClearDemoDataDialog() {
+  const html = HtmlService.createHtmlOutputFromFile("ClearDemoDataDialog")
+    .setWidth(500)
+    .setHeight(480);
+  SpreadsheetApp.getUi().showModalDialog(html, "🧹 清理範本示範資料 (準備正式使用)");
+}
+
+/**
+ * 前端 API：執行清理示範推廣資料
+ * @param {string} mode 'FULL_RESET' 或 'CLEAR_SCORES_ONLY'
+ * @returns {Object} { success: boolean, message: string }
+ */
+function executeClearDemoData(mode) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheets = ss.getSheets();
+    let cleanedSheetCount = 0;
+
+    for (const sh of sheets) {
+      const name = sh.getName();
+
+      // 1. 處理 [導師成績總表]
+      if (name === "導師成績總表") {
+        const lastCol = sh.getLastColumn();
+        const lastRow = sh.getLastRow();
+
+        if (lastCol >= 4) {
+          sh.deleteColumns(4, lastCol - 3);
+        }
+
+        if (mode === "FULL_RESET") {
+          if (lastRow >= 4) {
+            sh.getRange(4, 1, lastRow - 3, 3).clearContent();
+          }
+          const blankRows = [];
+          for (let i = 1; i <= 40; i++) {
+            blankRows.push(["", i, ""]);
+          }
+          sh.getRange(4, 1, 40, 3).setValues(blankRows).setHorizontalAlignment("center");
+        }
+        cleanedSheetCount++;
+      }
+
+      // 2. 處理科任班級分頁
+      else if (/^(國[一二三]|高[一二三]|\d{3}).{1,3}(理化|物理|化學|生物|地科|數學|英文|國文|歷史|地理|公民|資訊)$/.test(name)) {
+        const lastCol = sh.getLastColumn();
+        const lastRow = sh.getLastRow();
+
+        if (lastCol >= 4) {
+          sh.deleteColumns(4, lastCol - 3);
+        }
+
+        if (mode === "FULL_RESET") {
+          if (lastRow >= 4) {
+            sh.getRange(4, 1, lastRow - 3, 3).clearContent();
+          }
+          const blankRows = [];
+          for (let i = 1; i <= 40; i++) {
+            blankRows.push(["", i, ""]);
+          }
+          sh.getRange(4, 1, 40, 3).setValues(blankRows).setHorizontalAlignment("center");
+        }
+        cleanedSheetCount++;
+      }
+
+      // 3. 處理統計報表分頁
+      else if (name === "科任跨班分析總表" || name.endsWith("_總成績報表")) {
+        try {
+          ss.deleteSheet(sh);
+        } catch(e) {}
+      }
+    }
+
+    // 4. 重設 [System_Settings] 示範值
+    const settingsSheet = ss.getSheetByName("System_Settings");
+    if (settingsSheet) {
+      const lastR = settingsSheet.getLastRow();
+      if (lastR >= 2) {
+        const keyVals = settingsSheet.getRange("A2:B7").getValues();
+        for (let r = 0; r < keyVals.length; r++) {
+          const val = String(keyVals[r][1]);
+          if (val.includes("請在此填入") || val.includes("1A2b3C...") || val.includes("4D5e6F...")) {
+            settingsSheet.getRange(r + 2, 2).setValue("");
+          }
+        }
+      }
+    }
+
+    const tutorSheet = ss.getSheetByName("導師成績總表");
+    if (tutorSheet) ss.setActiveSheet(tutorSheet);
+
+    const msg = (mode === "FULL_RESET")
+      ? `已全面清空 ${cleanedSheetCount} 個分頁之示範假學生名冊與所有測驗成績，並預留 40 號空白標準欄位！`
+      : `已清空 ${cleanedSheetCount} 個分頁之所有歷次測驗與成績分數，完整保留您現有的學生名冊！`;
+
+    return {
+      success: true,
+      message: msg
+    };
+
+  } catch (err) {
+    Logger.log("executeClearDemoData error: " + err.message);
+    return { success: false, message: "清理示範資料失敗: " + err.message };
+  }
+}

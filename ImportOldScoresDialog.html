@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>快速匯入舊成績單</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --success: #10b981;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+      font-size: 14px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+    .header h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--primary);
+    }
+    .header p {
+      margin: 4px 0 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .source-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .drop-zone {
+      border: 2px dashed #94a3b8;
+      border-radius: 8px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      background: #f1f5f9;
+      transition: all 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+    .drop-icon { font-size: 32px; margin-bottom: 6px; }
+    .file-info {
+      margin-top: 8px;
+      font-weight: bold;
+      color: var(--primary);
+      display: none;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+    }
+    .radio-group {
+      display: flex;
+      gap: 16px;
+      margin-top: 6px;
+    }
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn {
+      padding: 9px 18px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      width: 100%;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-primary:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .preview-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      max-height: 120px;
+      overflow-y: auto;
+      margin-top: 10px;
+      display: none;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .badge-info { background: #dbeafe; color: #1e40af; }
+    .badge-success { background: #d1fae5; color: #065f46; }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <span style="font-size: 24px;">📥</span>
+    <div>
+      <h2>快速匯入舊成績單</h2>
+      <p>支援 Excel (.xlsx/.xls) 或 Google 試算表，自動建立並排版為符合新系統規範的標準分頁</p>
+    </div>
+  </div>
+
+  <!-- 來源切換按鈕 -->
+  <div class="source-tabs">
+    <button class="tab-btn active" id="tabUploadBtn" onclick="switchSourceTab('UPLOAD')">📁 上傳本機 Excel 檔 (.xlsx)</button>
+    <button class="tab-btn" id="tabUrlBtn" onclick="switchSourceTab('URL')">🔗 Google 試算表連結 / ID</button>
+  </div>
+
+  <!-- 來源一：本機上傳 -->
+  <div class="card" id="sourceUploadCard">
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-icon">📊</div>
+      <div style="font-weight: 600; color: #334155;">點擊選擇或拖曳 Excel 檔案至此</div>
+      <div style="font-size: 11px; color: #64748b; margin-top: 4px;">支援 .xlsx 與 .xls 格式</div>
+      <input type="file" id="fileInput" accept=".xlsx, .xls" style="display: none;" onchange="handleFileSelect(event)">
+      <div class="file-info" id="fileInfoText"></div>
+    </div>
+  </div>
+
+  <!-- 來源二：Google Sheet URL -->
+  <div class="card" id="sourceUrlCard" style="display: none;">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label>Google 試算表網址或 ID：</label>
+      <input type="text" id="sourceUrlInput" class="form-control" placeholder="https://docs.google.com/spreadsheets/d/...">
+      <div style="font-size: 11px; color: #64748b; margin-top: 4px;">請確保已開放存取權限，或為同帳號下的檔案</div>
+    </div>
+  </div>
+
+  <!-- 分析按鈕 -->
+  <button class="btn btn-primary" id="btnAnalyze" onclick="startAnalyzeSource()" style="margin-bottom: 12px;">
+    🔍 讀取舊成績單內容
+  </button>
+
+  <!-- 解析設定區塊 (預設隱藏，分析成功後顯示) -->
+  <div class="card" id="configCard" style="display: none;">
+    <div style="font-weight: bold; margin-bottom: 10px; color: var(--primary);">⚙️ 轉換為新標準分頁設定</div>
+
+    <div class="form-group">
+      <label>選擇來源工作表：</label>
+      <select id="sheetSelect" class="form-control" onchange="onSourceSheetChange()"></select>
+    </div>
+
+    <!-- 預覽資訊 -->
+    <div class="preview-box" id="previewBox">
+      <div id="previewMeta" style="margin-bottom: 6px; font-weight: 600;"></div>
+      <div id="previewDetail" style="color: #475569;"></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+      <div class="form-group">
+        <label>班級名稱 (防呆標記)：</label>
+        <input type="text" id="targetClassName" class="form-control" placeholder="例: 國二愛 或 101" oninput="updateNewSheetNameSuggestion()">
+      </div>
+      <div class="form-group">
+        <label>科目名稱：</label>
+        <input type="text" id="targetSubjectName" class="form-control" placeholder="例: 理化" oninput="updateNewSheetNameSuggestion()">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>轉換目標分頁類型：</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="targetType" value="SUBJECT" checked onchange="updateNewSheetNameSuggestion()">
+          <span><b>科任班級分頁</b> (五碼命名)</span>
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="targetType" value="HOMEROOM" onchange="updateNewSheetNameSuggestion()">
+          <span><b>導師成績總表</b> (多科/全科)</span>
+        </label>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div class="form-group">
+        <label>新分頁名稱：</label>
+        <input type="text" id="newSheetNameInput" class="form-control" placeholder="例: 國二愛理化">
+      </div>
+      <div class="form-group">
+        <label>若舊表無日期之預設日期：</label>
+        <input type="date" id="defaultDateInput" class="form-control">
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btnImport" onclick="startExecuteImport()" style="background: var(--success); margin-top: 6px;">
+      🚀 開始自動轉換並建立新分頁
+    </button>
+  </div>
+
+  <!-- Loading 動畫層 -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="font-weight: 600; font-size: 14px;" id="loadingText">正在處理中...</div>
+  </div>
+
+  <script>
+    let currentSourceType = 'UPLOAD';
+    let uploadedFileBlob = null; // { name, base64 }
+    let analyzedResult = null;
+
+    // 初始化日期
+    document.getElementById('defaultDateInput').value = new Date().toISOString().split('T')[0];
+
+    // 切換來源 Tab
+    function switchSourceTab(type) {
+      currentSourceType = type;
+      document.getElementById('tabUploadBtn').classList.toggle('active', type === 'UPLOAD');
+      document.getElementById('tabUrlBtn').classList.toggle('active', type === 'URL');
+      document.getElementById('sourceUploadCard').style.display = type === 'UPLOAD' ? 'block' : 'none';
+      document.getElementById('sourceUrlCard').style.display = type === 'URL' ? 'block' : 'none';
+      document.getElementById('configCard').style.display = 'none';
+      analyzedResult = null;
+    }
+
+    // 拖拉上傳支援
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        processSelectedFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleFileSelect(e) {
+      if (e.target.files.length > 0) {
+        processSelectedFile(e.target.files[0]);
+      }
+    }
+
+    function processSelectedFile(file) {
+      const infoText = document.getElementById('fileInfoText');
+      infoText.style.display = 'block';
+      infoText.innerText = `📄 已選取: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+      
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const base64 = evt.target.result.split(',')[1];
+        uploadedFileBlob = {
+          name: file.name,
+          base64: base64
+        };
+        // 嘗試從檔名推估班級與科目
+        guessClassAndSubject(file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function guessClassAndSubject(text) {
+      const subMatch = text.match(/(國文|英文|數學|理化|物理|化學|生物|地科|歷史|地理|公民)/);
+      if (subMatch) {
+        document.getElementById('targetSubjectName').value = subMatch[1];
+      }
+      const classMatch = text.match(/(國[一二三][^\d\s\._]+|[1-9][0-9]{2}|高[一二三][^\d\s\._]+)/);
+      if (classMatch) {
+        document.getElementById('targetClassName').value = classMatch[1];
+      }
+      updateNewSheetNameSuggestion();
+    }
+
+    function showLoading(msg) {
+      document.getElementById('loadingText').innerText = msg || "正在處理中...";
+      document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    // 點擊讀取舊成績單
+    function startAnalyzeSource() {
+      let payload = { sourceType: currentSourceType };
+
+      if (currentSourceType === 'UPLOAD') {
+        if (!uploadedFileBlob) {
+          alert("請先選擇或拖曳本機 Excel 檔案！");
+          return;
+        }
+        payload.fileData = uploadedFileBlob;
+      } else {
+        const url = document.getElementById('sourceUrlInput').value.trim();
+        if (!url) {
+          alert("請輸入 Google 試算表網址或 ID！");
+          return;
+        }
+        payload.sourceUrl = url;
+      }
+
+      showLoading("正在讀取並解析舊成績單檔案結構...");
+      google.script.run
+        .withSuccessHandler(res => {
+          hideLoading();
+          if (!res || !res.success) {
+            alert("讀取失敗: " + (res ? res.message : "未知錯誤"));
+            return;
+          }
+          analyzedResult = res;
+          renderAnalyzedSheets(res.sheets);
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("讀取發生異常: " + err.message);
+        })
+        .analyzeOldScoresSource(payload);
+    }
+
+    function renderAnalyzedSheets(sheets) {
+      const select = document.getElementById('sheetSelect');
+      select.innerHTML = '';
+      sheets.forEach((s, idx) => {
+        const opt = document.createElement('option');
+        opt.value = s.sheetName;
+        opt.innerText = `${s.sheetName} (${s.rowCount} 列 × ${s.colCount} 欄)`;
+        select.appendChild(opt);
+      });
+
+      document.getElementById('configCard').style.display = 'block';
+      onSourceSheetChange();
+    }
+
+    function onSourceSheetChange() {
+      if (!analyzedResult || !analyzedResult.sheets) return;
+      const sheetName = document.getElementById('sheetSelect').value;
+      const s = analyzedResult.sheets.find(x => x.sheetName === sheetName);
+      if (s) {
+        const metaBox = document.getElementById('previewMeta');
+        const detailBox = document.getElementById('previewDetail');
+        document.getElementById('previewBox').style.display = 'block';
+
+        metaBox.innerHTML = `工作表：<span class="badge badge-info">${s.sheetName}</span> | 偵測學生：約 ${s.estimatedStudents || 0} 人 | 測驗欄位：約 ${s.testColsCount || 0} 欄`;
+        
+        if (s.previewRows && s.previewRows.length > 0) {
+          let rowsHtml = s.previewRows.map((r, i) => `<b>列 ${i+1}:</b> ${r.slice(0, 6).join(' | ')}${r.length > 6 ? ' ...' : ''}`).join('<br>');
+          detailBox.innerHTML = rowsHtml;
+        } else {
+          detailBox.innerHTML = "無預覽資料";
+        }
+
+        // 嘗試從分頁名猜測
+        guessClassAndSubject(s.sheetName);
+      }
+    }
+
+    function updateNewSheetNameSuggestion() {
+      const c = document.getElementById('targetClassName').value.trim();
+      const s = document.getElementById('targetSubjectName').value.trim();
+      const type = document.querySelector('input[name="targetType"]:checked').value;
+      const input = document.getElementById('newSheetNameInput');
+
+      if (type === 'SUBJECT') {
+        if (c && s) {
+          input.value = `${c}${s}`;
+        } else if (c) {
+          input.value = `${c}成績`;
+        }
+      } else {
+        if (c) {
+          input.value = `${c}導師總表`;
+        } else {
+          input.value = `新導師成績總表`;
+        }
+      }
+    }
+
+    // 執行匯入轉換
+    function startExecuteImport() {
+      const newSheetName = document.getElementById('newSheetNameInput').value.trim();
+      const className = document.getElementById('targetClassName').value.trim();
+      const subjectName = document.getElementById('targetSubjectName').value.trim();
+      const targetType = document.querySelector('input[name="targetType"]:checked').value;
+      const defaultDate = document.getElementById('defaultDateInput').value.trim();
+      const sourceSheetName = document.getElementById('sheetSelect').value;
+
+      if (!newSheetName) {
+        alert("請輸入新分頁名稱！");
+        return;
+      }
+      if (!className) {
+        alert("請輸入班級名稱（作為 A1 防呆標記）！");
+        return;
+      }
+
+      const params = {
+        sourceType: analyzedResult.sourceType,
+        sourceIdOrUrl: analyzedResult.sourceIdOrUrl,
+        tempSsId: analyzedResult.tempSsId || "",
+        sourceSheetName: sourceSheetName,
+        targetType: targetType,
+        className: className,
+        subjectName: subjectName || "平時測驗",
+        newSheetName: newSheetName,
+        defaultDate: defaultDate || new Date().toISOString().split('T')[0]
+      };
+
+      showLoading("正在將舊成績單格式轉換並建立新分頁...");
+      google.script.run
+        .withSuccessHandler(res => {
+          hideLoading();
+          if (res && res.success) {
+            alert(`🎉 恭喜！舊成績單已成功匯入至新分頁【${res.newSheetName}】！\n共匯入 ${res.studentsCount} 位學生、${res.testsCount} 次測驗。\n已自動為您套用標準規範與美化格式。`);
+            google.script.host.close();
+          } else {
+            alert("匯入失敗: " + (res ? res.message : "未知錯誤"));
+          }
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("匯入發生異常: " + err.message);
+        })
+        .executeImportOldScores(params);
+    }
+  </script>
+</body>
+</html>
