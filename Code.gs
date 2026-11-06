@@ -5176,20 +5176,23 @@ function executeImportOldScores(params) {
 
     // 5. 填寫表頭
     if (isSubject) {
+      // 【科任班級分頁格式：A1班級防呆, A欄座號, B欄姓名, C欄起測驗】
       targetSheet.getRange(1, 1).setValue(params.className).setBackground(COLOR_BADGE).setFontWeight("bold").setHorizontalAlignment("center");
-      targetSheet.getRange(1, 2).setValue("座號").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
-      targetSheet.getRange(1, 3).setValue("姓名").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(1, 2).setValue("").setHorizontalAlignment("center");
 
-      targetSheet.getRange(2, 1, 1, 3).setValues([["-", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
-      targetSheet.getRange(3, 1, 1, 3).setValues([["-", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
+      targetSheet.getRange(2, 1, 1, 2).setValues([["-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
+      targetSheet.getRange(3, 1).setValue("座號").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(3, 2).setValue("姓名").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
 
+      // C 欄 (Col 3) 起填入測驗
       for (let t = 0; t < testCols.length; t++) {
-        const col = 4 + t;
+        const col = 3 + t;
         targetSheet.getRange(1, col).setValue(testCols[t].category).setBackground(COLOR_CAT).setFontWeight("bold").setHorizontalAlignment("center");
         targetSheet.getRange(2, col).setValue(testCols[t].scope).setBackground(COLOR_SCOPE).setHorizontalAlignment("center");
         targetSheet.getRange(3, col).setValue(testCols[t].date).setBackground(COLOR_DATE).setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
       }
 
+      // 第 4 列起填入學生座號、姓名與成績 (A欄座號, B欄姓名, C欄起成績)
       const dataRows = [];
       for (let i = 0; i < students.length; i++) {
         const st = students[i];
@@ -5201,9 +5204,7 @@ function executeImportOldScores(params) {
         }
         dataRows.push(row);
       }
-      targetSheet.getRange(4, 2, dataRows.length, dataRows[0].length).setValues(dataRows);
-      const classColVals = Array(students.length).fill([params.className]);
-      targetSheet.getRange(4, 1, students.length, 1).setValues(classColVals).setHorizontalAlignment("center");
+      targetSheet.getRange(4, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
 
     } else {
       targetSheet.getRange(1, 1).setValue(params.className).setBackground(COLOR_BADGE).setFontWeight("bold").setHorizontalAlignment("center");
@@ -5235,7 +5236,7 @@ function executeImportOldScores(params) {
       targetSheet.getRange(4, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
     }
 
-    const fullRange = targetSheet.getRange(1, 1, totalRows, 3 + testCols.length);
+    const fullRange = targetSheet.getRange(1, 1, totalRows, (isSubject ? 2 : 3) + testCols.length);
     fullRange.setBorder(true, true, true, true, true, true, "#CBD5E0", SpreadsheetApp.BorderStyle.SOLID);
     targetSheet.getRange(4, 1, students.length, fullRange.getNumColumns()).setHorizontalAlignment("center");
 
@@ -5316,24 +5317,26 @@ function executeClearDemoData(mode) {
         cleanedSheetCount++;
       }
 
-      // 2. 處理科任班級分頁
+      // 2. 處理科任班級分頁 (A欄座號, B欄姓名, C欄起成績)
       else if (/^(國[一二三]|高[一二三]|\d{3}).{1,3}(理化|物理|化學|生物|地科|數學|英文|國文|歷史|地理|公民|資訊)$/.test(name)) {
         const lastCol = sh.getLastColumn();
         const lastRow = sh.getLastRow();
 
-        if (lastCol >= 4) {
-          sh.deleteColumns(4, lastCol - 3);
+        // A. 刪除 C 欄 (Col 3) 以後的所有測驗成績欄位
+        if (lastCol >= 3) {
+          sh.deleteColumns(3, lastCol - 2);
         }
 
+        // B. 依模式處理 (科任分頁學生名冊為 A:B 兩欄: A欄座號, B欄姓名)
         if (mode === "FULL_RESET") {
           if (lastRow >= 4) {
-            sh.getRange(4, 1, lastRow - 3, 3).clearContent();
+            sh.getRange(4, 1, lastRow - 3, 2).clearContent();
           }
           const blankRows = [];
           for (let i = 1; i <= 40; i++) {
-            blankRows.push(["", i, ""]);
+            blankRows.push([i, ""]); // A欄為座號 i、B欄為空姓名
           }
-          sh.getRange(4, 1, 40, 3).setValues(blankRows).setHorizontalAlignment("center");
+          sh.getRange(4, 1, 40, 2).setValues(blankRows).setHorizontalAlignment("center");
         }
         cleanedSheetCount++;
       }
