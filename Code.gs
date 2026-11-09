@@ -1,5 +1,4 @@
 /**
- * @OnlyCurrentDoc
  * 導師與專任雙系統整合版成績管理系統 (Bug 修正整合版)
  */
 
@@ -583,8 +582,10 @@ function generateBatchReportHtml(startDateStr, endDateStr) {
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   
+  // 1. 教師主控台
   ui.createMenu("🌟 教師主控台")
     .addItem("🚀 開啟教師全功能主控台 (辨識匯入 / 導師主控 / 科任主控)", "showTeacherHubDialog")
+    .addItem("💡 開啟教師使用指南與 QA 諮詢 (側邊欄)", "showQASidebar")
     .addSeparator()
     .addItem("📥 快速匯入舊成績單 (建立新格式分頁)", "showImportOldScoresDialog")
     .addItem("🧹 清理範本示範資料 (準備正式使用)", "showClearDemoDataDialog")
@@ -592,10 +593,9 @@ function onOpen() {
     .addItem("📖 產生/更新系統操作說明與範本分頁", "generateSystemManualSheet")
     .addToUi();
 
+  // 2. 導師成績管理
   ui.createMenu("🏫 導師成績管理")
     .addItem("📥 執行每日匯入 (自動路由分頁)", "importDailyScores")
-    .addItem("📥 匯入當前分頁成績至導師總表 (5字解析比對)", "importSubjectSheetToTutorSheetUI")
-    .addItem("📥 快速匯入舊成績單 (建立新格式分頁)", "showImportOldScoresDialog")
     .addSeparator()
     .addItem("📊 產生指定區間歷史成績單", "showSheetWriteDialog")
     .addItem("🖨️ 匯出區間個人報表 (列印/PDF)", "showBatchReportDialog")
@@ -605,23 +605,28 @@ function onOpen() {
     .addItem("🧹 清理範本示範資料 (準備正式使用)", "showClearDemoDataDialog")
     .addSeparator()
     .addItem("🛠️ 建立/檢查 [System_Settings] 基礎設定分頁", "initSystemSettingsSheet")
-    .addItem("📖 產生/更新系統操作說明與範本分頁", "generateSystemManualSheet")
     .addToUi();
 
-  ui.createMenu("🏫 成績管理工具")
-    .addItem("📤 同步當前科任成績至導師試算表 (跨檔動態開啟)", "syncSubjectSheetToHomeroomSpreadsheetUI")
-    .addItem("📥 匯入當前分頁成績至導師總表 (本檔)", "importSubjectSheetToTutorSheetUI")
-    .addSeparator()
+  // 3. 科任成績管理
+  ui.createMenu("🔬 科任成績管理")
     .addItem("📈 開啟科任跨班分析儀表板 (視覺化)", "showSubjectDashboardDialog")
     .addItem("📑 產出科任跨班分析總表分頁", "createSubjectAnalyticsSheetUI")
     .addSeparator()
     .addItem("📊 產生專任班級總成績報表", "showSelectSubjectSheetDialog")
     .addItem("💯 指定欄號換算百分制", "convertSelectedToPercentage")
-    .addItem("🍎計算平均與區間人數", "generateCurrentSubjectStats")
+    .addItem("🍎 計算平均與區間人數", "generateCurrentSubjectStats")
     .addItem("🔀 按評量類別排序欄位 (當前班級)", "sortCurrentSheetColumnsByCategory")
     .addSeparator()
     .addItem("⚙️ 設定科目/類別加權值", "showWeightSettingDialog")
     .addItem("➕ 手動新增專任班級分頁", "createNewSubjectClassSheet")
+    .addToUi();
+
+  // 4. 獨立同步試算表選單 (科任與導師跨檔同步與分享)
+  ui.createMenu("🔄 同步試算表")
+    .addItem("📤 跨檔同步當前科任分頁至導師試算表 (專屬分頁自動建立/更新)", "syncSubjectSheetToHomeroomSpreadsheetUI")
+    .addItem("📥 匯入當前科任成績至導師總表 (同試算表內)", "importSubjectSheetToTutorSheetUI")
+    .addSeparator()
+    .addItem("🛠️ 檢查/設定 [System_Settings] 導師試算表 ID 對照清單", "initSystemSettingsSheet")
     .addToUi();
 }
 
@@ -2970,10 +2975,15 @@ function addNewSubjectColumnToTutorSheet(subject, examRange, examDate, scoreMap,
   const lastCol = tutorSheet.getLastColumn();
   const startCol = (lastCol < 3) ? 4 : lastCol + 1;
 
-  tutorSheet.getRange(1, startCol).setNumberFormat("@").setValue(subject);
-  tutorSheet.getRange(2, startCol).setNumberFormat("@").setValue(examRange);
-  tutorSheet.getRange(3, startCol).setNumberFormat("@").setValue(examDate);
+  // 1. 寫入標題資料並美化格式 (Row 1 科目、Row 2 範圍、Row 3 日期)
+  tutorSheet.getRange(1, startCol).setNumberFormat("@").setValue(subject)
+    .setBackground("#bee3f8").setFontColor("#1a365d").setFontWeight("bold").setHorizontalAlignment("center");
+  tutorSheet.getRange(2, startCol).setNumberFormat("@").setValue(examRange)
+    .setBackground("#e2e8f0").setHorizontalAlignment("center");
+  tutorSheet.getRange(3, startCol).setNumberFormat("@").setValue(examDate)
+    .setBackground("#feebc8").setHorizontalAlignment("center");
 
+  // 2. 依座號寫入學生成績 (B欄為座號，第4列起)
   const studentEndRow = getStudentEndRow(tutorSheet, 2, 3);
   const totalStudents = studentEndRow - 3;
 
@@ -2994,14 +3004,16 @@ function addNewSubjectColumnToTutorSheet(subject, examRange, examDate, scoreMap,
       }
       return [sc !== "" && sc !== null && sc !== undefined ? sc : ""];
     });
-    tutorSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores);
+    tutorSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores).setHorizontalAlignment("center");
   }
 
   return { addedColumn: startCol };
 }
 
 /**
- * 導師端：自動抓取 5 字名稱分頁 (例: 101理化) 並驗證 A1 班級後匯入總表新欄
+ * 導師端/本檔匯入：自動讀取當前科任分頁中所有符合考試類別（包含「考」關鍵字）的測驗成績，
+ * 依前三字比對「導師成績總表」A1 班級，並在新欄填上後兩字科目。
+ * 複製前先確認導師總表是否有完全相同的資料 (同科目、同範圍、同時間)，避免重複寫入！
  */
 function importSubjectSheetToTutorSheetUI() {
   const ui = SpreadsheetApp.getUi();
@@ -3009,80 +3021,187 @@ function importSubjectSheetToTutorSheetUI() {
   const activeSheet = ss.getActiveSheet();
   const sheetName = activeSheet.getName().trim();
 
-  // 防呆：禁止在管理分頁上執行
-  if (sheetName === "導師成績總表" || sheetName === "System_Settings") {
-    ui.alert("⚠️ 請先切換至科任成績分頁（例如：101理化），再執行匯入！");
+  // 1. 防呆：禁止在系統或管理分頁上執行
+  const reservedSheets = ["導師成績總表", "導師班成績統計表", "System_Settings", "科任跨班分析總表", "系統操作說明與格式範本"];
+  if (reservedSheets.includes(sheetName) || sheetName.endsWith("_總成績報表")) {
+    ui.alert("⚠️ 請先切換至科任成績分頁（例如：國二愛理化、101理化），再執行匯入！");
     return;
   }
 
-  // 1. 自動解析分頁名稱 (假設格式為：班級(3字) + 科目(2字)，如 "101理化")
+  // 2. 依照規範解析分頁名稱：前三字為班級，後兩字為科目
   let parsedClass = "";
   let parsedSubject = "";
-
   if (sheetName.length >= 5) {
-    parsedClass = sheetName.substring(0, 3);   // 前 3 字：101
-    parsedSubject = sheetName.substring(3);    // 第 4 字以後：理化
+    parsedClass = sheetName.substring(0, 3);
+    parsedSubject = sheetName.slice(-2);
+  } else if (sheetName.length >= 3) {
+    parsedClass = sheetName.substring(0, 3);
+    parsedSubject = sheetName.substring(3) || "科目";
   } else {
-    parsedClass = sheetName.replace(/[^0-9]/g, "");
-    parsedSubject = sheetName.replace(/[0-9]/g, "");
+    parsedClass = sheetName;
+    parsedSubject = "科目";
   }
 
-  // 2. 讀取導師總表 A1 並比對班級
+  // 3. 取得「導師成績總表」並比對 A1 的班級
   const tutorSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
-  const a1Value = String(tutorSheet.getRange("A1").getValue()).trim();
-
-  if (parsedClass && !a1Value.includes(parsedClass)) {
-    const confirmImport = ui.alert(
-      "⚠️ 班級不符警示",
-      `當前分頁解析班級為【${parsedClass}】，但導師總表 A1 為【${a1Value}】。
-確定要繼續匯入嗎？`,
-      ui.ButtonSet.YES_NO
-    );
-    if (confirmImport !== ui.Button.YES) return;
+  if (!tutorSheet) {
+    ui.alert("⚠️ 找不到「導師成績總表」分頁！");
+    return;
   }
+  const tutorA1 = String(tutorSheet.getRange("A1").getValue() || "").trim();
 
-  // 3. 彈出輸入視窗（預填解析出來的科目，簡化輸入程序）
-  const respSubject = ui.prompt("確認科目", `請確認科目名稱：`, ui.ButtonSet.OK_CANCEL);
-  if (respSubject.getSelectedButton() !== ui.Button.OK) return;
-  const finalSubject = respSubject.getResponseText().trim() || parsedSubject;
+  // 比對班級名稱 (剔除「班」字比較)
+  const cleanParsedClass = parsedClass.replace(/班/g, "").trim();
+  const cleanTutorA1 = tutorA1.replace(/班/g, "").trim();
 
-  const respRange = ui.prompt("測驗範圍", "請輸入測驗範圍/細項（例：第三單元小考）：", ui.ButtonSet.OK_CANCEL);
-  if (respRange.getSelectedButton() !== ui.Button.OK) return;
-  const rangeText = respRange.getResponseText().trim();
-
-  const defaultDate = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd");
-  const respDate = ui.prompt("測驗日期", `請確認測驗日期 (YYYY-MM-DD)：`, ui.ButtonSet.OK_CANCEL);
-  if (respDate.getSelectedButton() !== ui.Button.OK) return;
-  const testDate = respDate.getResponseText().trim() || defaultDate;
-
-  // 4. 讀取分頁成績資料 (第 1 欄位為座號/學號，第 2 欄位為成績)
-  const data = activeSheet.getDataRange().getValues();
-  if (data.length < 2) {
-    ui.alert("⚠️ 該分頁無成績資料！");
+  if (cleanParsedClass && cleanTutorA1 && cleanParsedClass !== cleanTutorA1) {
+    ui.alert(
+      "⚠️ 班級不符合",
+      `當前科任分頁解析之班級為【${parsedClass}】，但「導師成績總表」A1 班級為【${tutorA1}】！\n無法跨班匯入，請切換至該班專屬科任分頁後再試。`,
+      ui.ButtonSet.OK
+    );
     return;
   }
 
-  const scoreMap = {};
-  for (let r = 1; r < data.length; r++) {
-    const key = String(data[r][0]).trim();
-    const score = data[r][1];
-    if (key !== "") {
-      scoreMap[key] = score;
+  // 4. 檢查科任分頁欄位結構 (A欄座號, B欄姓名, C欄起為測驗成績)
+  const lastCol = activeSheet.getLastColumn();
+  const lastRow = activeSheet.getLastRow();
+  if (lastCol < 3 || lastRow < 4) {
+    ui.alert("⚠️ 成績資料不足", `分頁【${sheetName}】尚未填入任何測驗成績（測驗欄位應從 C 欄第 1 列起）！`, ui.ButtonSet.OK);
+    return;
+  }
+
+  // 5. 讀取導師總表現有已存在的測驗清單 (用於比對同科目、同範圍、同時間)
+  const tutorLastCol = tutorSheet.getLastColumn();
+  const existingExams = [];
+  if (tutorLastCol >= 4) {
+    const existingSubjects = tutorSheet.getRange(1, 4, 1, tutorLastCol - 3).getDisplayValues()[0];
+    const existingRanges = tutorSheet.getRange(2, 4, 1, tutorLastCol - 3).getDisplayValues()[0];
+    const existingDates = tutorSheet.getRange(3, 4, 1, tutorLastCol - 3).getValues()[0];
+
+    for (let i = 0; i < existingSubjects.length; i++) {
+      const s = String(existingSubjects[i] || "").trim();
+      const r = String(existingRanges[i] || "").trim();
+      let d = existingDates[i];
+      let dStr = "";
+      if (d instanceof Date) {
+        dStr = Utilities.formatDate(d, "GMT+8", "yyyy-MM-dd");
+      } else if (d) {
+        dStr = String(d).trim();
+      }
+      if (s) {
+        existingExams.push({
+          col: 4 + i,
+          subject: s,
+          range: r,
+          date: dStr
+        });
+      }
     }
   }
 
-  // 5. 執行寫入導師總表新欄位
-  try {
-    ui.toast(`正在匯入【${parsedClass} - ${finalSubject}】...`, "⏳ 處理中", -1);
-    const res = addNewSubjectColumnToTutorSheet(finalSubject, rangeText, testDate, scoreMap);
-    ui.alert("✅ 匯入成功！", `已將【${parsedClass} ${finalSubject} - ${rangeText}】成功寫入「導師成績總表」第 ${res.addedColumn} 欄！`, ui.ButtonSet.OK);
-  } catch (err) {
-    ui.alert("❌ 匯入失敗", err.message, ui.ButtonSet.OK);
+  // 6. 讀取科任分頁第 1~3 列 (類別、範圍、日期) 與學生座號資料
+  const totalTestCols = lastCol - 2; // 從 Col 3 (C欄) 開始
+  const categories = activeSheet.getRange(1, 3, 1, totalTestCols).getDisplayValues()[0];
+  const ranges = activeSheet.getRange(2, 3, 1, totalTestCols).getDisplayValues()[0];
+  const dates = activeSheet.getRange(3, 3, 1, totalTestCols).getValues()[0];
+
+  const studentRows = lastRow - 3;
+  const seatData = activeSheet.getRange(4, 1, studentRows, 1).getValues();
+  const allScores = activeSheet.getRange(4, 3, studentRows, totalTestCols).getValues();
+
+  // 7. 遍歷科任分頁所有測驗欄位
+  const importedList = [];
+  const skippedList = [];
+  const nonExamList = [];
+
+  ss.toast(`正在比對並匯入【${sheetName}】成績...`, "⏳ 處理中", -1);
+
+  for (let c = 0; c < totalTestCols; c++) {
+    const catVal = String(categories[c] || "").trim();
+    const rangeVal = String(ranges[c] || "").trim();
+    const dateVal = dates[c];
+
+    // 格式化日期為 yyyy-MM-dd
+    let testDateStr = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd");
+    if (dateVal instanceof Date) {
+      testDateStr = Utilities.formatDate(dateVal, "GMT+8", "yyyy-MM-dd");
+    } else if (dateVal) {
+      testDateStr = String(dateVal).trim();
+    }
+
+    // 判斷考試類別：關鍵字「考」（涵蓋考試、小考、段考、平時考、隨堂考、期中考、模擬考等，相容包含「測驗」）
+    const isExam = catVal.includes("考") || catVal.includes("測驗");
+    if (!isExam) {
+      nonExamList.push(`${catVal || "未命名"} (非考試類別)`);
+      continue;
+    }
+
+    // 新欄設定：科目填上後兩字科目、範圍填上科任範圍 (若為空則以考試類別替補)
+    const finalSubject = parsedSubject;
+    const finalRange = rangeVal || catVal || "平時測驗";
+
+    // 比對導師總表是否有完全相同的資料 (同科目、同範圍、同時間)
+    const isDuplicate = existingExams.some(item => {
+      const matchSubject = (item.subject === finalSubject);
+      const matchDate = (item.date === testDateStr);
+      const matchRange = (item.range === finalRange || 
+                          (item.range && finalRange && (item.range.includes(finalRange) || finalRange.includes(item.range))));
+      return matchSubject && matchDate && matchRange;
+    });
+
+    if (isDuplicate) {
+      skippedList.push(`${finalSubject} | ${finalRange} (${testDateStr})`);
+      continue;
+    }
+
+    // 準備學生座號對應成績
+    const scoreMap = {};
+    for (let r = 0; r < studentRows; r++) {
+      const seatKey = String(seatData[r][0]).trim();
+      const scoreVal = allScores[r][c];
+      if (seatKey !== "") {
+        scoreMap[seatKey] = scoreVal;
+      }
+    }
+
+    // 寫入導師總表新欄
+    try {
+      const res = addNewSubjectColumnToTutorSheet(finalSubject, finalRange, testDateStr, scoreMap, tutorSheet);
+      // 成功寫入後，將該筆資料加入已存在清單，避免同次匯入後續重複欄位
+      existingExams.push({
+        col: res.addedColumn,
+        subject: finalSubject,
+        range: finalRange,
+        date: testDateStr
+      });
+      importedList.push(`第 ${res.addedColumn} 欄：${finalSubject} | ${finalRange} (${testDateStr})`);
+    } catch (err) {
+      Logger.log(`匯入第 ${c + 3} 欄失敗: ${err.message}`);
+    }
   }
+
+  // 8. 顯示執行結果通知
+  let resultMsg = "";
+  if (importedList.length > 0) {
+    resultMsg += `🎉 成功新增匯入 ${importedList.length} 欄測驗至「導師成績總表」：\n` + importedList.slice(0, 8).join("\n") + (importedList.length > 8 ? `\n...等共 ${importedList.length} 欄` : "") + "\n\n";
+  }
+  if (skippedList.length > 0) {
+    resultMsg += `ℹ️ 略過已存在相同資料 ${skippedList.length} 欄 (同科目、同範圍、同時間)：\n` + skippedList.slice(0, 5).join("\n") + (skippedList.length > 5 ? `\n...等共 ${skippedList.length} 欄` : "") + "\n\n";
+  }
+  if (importedList.length === 0 && skippedList.length > 0) {
+    resultMsg = `ℹ️ 導師總表中已存在所有相同的測驗資料（共 ${skippedList.length} 欄，同科目、同範圍、同時間），無須重複新增！\n\n已略過：\n` + skippedList.join("\n");
+  } else if (importedList.length === 0 && skippedList.length === 0) {
+    resultMsg = `⚠️ 分頁【${sheetName}】中未找到包含「考」關鍵字的測驗欄位！`;
+  }
+
+  ss.toast("匯入作業完成！", "✅ 完成", 3);
+  ui.alert("📥 匯入結果報告", resultMsg, ui.ButtonSet.OK);
 }
 
 /**
- * 專任/科任端：動態查詢 [System_Settings] 對照表，將當前分頁成績跨檔案同步至對應導師試算表
+ * 專任/科任端：將當前科任班級分頁（例如：國二愛理化）跨檔案完整同步到該班導師的試算表
+ * 若導師試算表中已有該專屬分頁，則進行高保真資料更新；若無該分頁，則自動新增該分頁！
  */
 function syncSubjectSheetToHomeroomSpreadsheetUI() {
   const ui = SpreadsheetApp.getUi();
@@ -3090,108 +3209,118 @@ function syncSubjectSheetToHomeroomSpreadsheetUI() {
   const activeSheet = ss.getActiveSheet();
   const sheetName = activeSheet.getName().trim();
 
-  // 防呆：禁止在管理分頁上執行
-  if (sheetName === "導師成績總表" || sheetName === "System_Settings") {
-    ui.alert("⚠️ 請先切換至科任成績分頁（例如：101理化），再執行跨檔同步！");
+  // 1. 防呆檢查：禁止在系統/總表分頁上執行
+  const reservedSheets = ["導師成績總表", "導師班成績統計表", "System_Settings", "科任跨班分析總表", "系統操作說明與格式範本"];
+  if (reservedSheets.includes(sheetName) || sheetName.endsWith("_總成績報表")) {
+    ui.alert("⚠️ 請先切換至欲同步的科任班級分頁（例如：國二愛理化、101理化），再執行同步！");
     return;
   }
 
-  // 1. 自動解析分頁名稱 (前 3 字為班級代碼，後續為科目名稱，例如 "101理化")
-  let parsedClass = "";
-  let parsedSubject = "";
-
-  if (sheetName.length >= 5) {
-    parsedClass = sheetName.substring(0, 3);
-    parsedSubject = sheetName.substring(3);
-  } else {
-    parsedClass = sheetName.replace(/[^0-9]/g, "");
-    parsedSubject = sheetName.replace(/[0-9]/g, "");
-  }
-
-  if (!parsedClass) {
-    ui.alert("⚠️ 解析班級代碼失敗", `分頁名稱【${sheetName}】中無法識別出班級代碼（如 101）！`, ui.ButtonSet.OK);
+  // 2. 解析班級名稱 (精確比對 System_Settings 的 Class_Code 或分頁前綴)
+  const settingsSheet = ss.getSheetByName("System_Settings");
+  if (!settingsSheet) {
+    ui.alert("❌ 找不到 [System_Settings] 基礎設定分頁！請先建立並填寫導師試算表對照表。");
     return;
   }
 
-  // 2. 透過 getHomeroomConfig 取得對照表資訊 (Homeroom_SS_ID、Target_Sheet_Name 等)
-  let hrConfig;
-  try {
-    hrConfig = getHomeroomConfig(parsedClass);
-  } catch (err) {
-    ui.alert("❌ 找不到導師試算表對照", err.message, ui.ButtonSet.OK);
+  let matchedClassCode = "";
+  let hrConfig = null;
+
+  // 讀取 System_Settings 中所有的班級代碼對照
+  const lastRow = settingsSheet.getLastRow();
+  if (lastRow >= 2) {
+    const data = settingsSheet.getRange("D1:H" + lastRow).getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idxClass = headers.indexOf("Class_Code");
+    const idxSSID = headers.indexOf("Homeroom_SS_ID");
+
+    if (idxClass !== -1 && idxSSID !== -1) {
+      for (let r = 1; r < data.length; r++) {
+        const cCode = String(data[r][idxClass]).trim();
+        const ssId = String(data[r][idxSSID]).trim();
+        if (cCode && (sheetName.startsWith(cCode) || sheetName.includes(cCode))) {
+          matchedClassCode = cCode;
+          hrConfig = {
+            classCode: cCode,
+            homeroomSSID: ssId
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  // 若對照表未精確匹配，嘗試用正規表示法提取 (例如 "國二愛理化" -> "國二愛", "101理化" -> "101")
+  if (!hrConfig) {
+    const fallbackMatch = sheetName.match(/^(國[一二三][^\s\d]{1,2}|高[一二三][^\s\d]{1,2}|\d{3})/);
+    if (fallbackMatch) {
+      matchedClassCode = fallbackMatch[1];
+      try {
+        hrConfig = getHomeroomConfig(matchedClassCode);
+      } catch (e) {}
+    }
+  }
+
+  if (!hrConfig || !hrConfig.homeroomSSID) {
+    ui.alert(
+      "⚠️ 找不到導師試算表設定",
+      `分頁【${sheetName}】識別出班級為【${matchedClassCode || "未知"}】，但在 [System_Settings] 的對照表 (D~H 欄) 中尚未填入此班級的 Homeroom_SS_ID！\n\n請先至 [System_Settings] 填入該班導師的試算表 ID。`,
+      ui.ButtonSet.OK
+    );
     return;
   }
 
-  if (!hrConfig.homeroomSSID) {
-    ui.alert("⚠️ 尚未設定導師試算表 ID", `[System_Settings] 中班級【${parsedClass}】尚未填入 Homeroom_SS_ID！`, ui.ButtonSet.OK);
-    return;
-  }
-
-  // 3. 開啟目標導師試算表
+  // 3. 開啟遠端導師試算表
   let tutorSS;
   try {
     tutorSS = SpreadsheetApp.openById(hrConfig.homeroomSSID);
   } catch (err) {
-    ui.alert("❌ 開啟導師試算表失敗", `無法開啟試算表 (ID: ${hrConfig.homeroomSSID})：\n${err.message}`, ui.ButtonSet.OK);
-    return;
-  }
-
-  const targetSheetName = hrConfig.targetSheetName || "導師成績總表";
-  const tutorSheet = tutorSS.getSheetByName(targetSheetName) || tutorSS.getSheets()[0];
-  if (!tutorSheet) {
-    ui.alert("❌ 找不到目標分頁", `導師試算表中找不到【${targetSheetName}】分頁！`, ui.ButtonSet.OK);
-    return;
-  }
-
-  // 4. 比對導師總表 A1 班級防呆
-  const a1Value = String(tutorSheet.getRange("A1").getValue()).trim();
-  if (parsedClass && !a1Value.includes(parsedClass)) {
-    const confirmImport = ui.alert(
-      "⚠️ 班級不符警示",
-      `當前分頁班級為【${parsedClass}】，但該導師試算表 A1 儲存格內容為【${a1Value}】。\n確定仍要跨檔同步匯入嗎？`,
-      ui.ButtonSet.YES_NO
+    ui.alert(
+      "❌ 開啟導師試算表失敗 (權限或 ID 錯誤)",
+      `無法開啟試算表 (ID: ${hrConfig.homeroomSSID})：\n${err.message}\n\n💡 提示：請確認該班導師已將試算表「共用」給您，且權限設為「編輯者」！`,
+      ui.ButtonSet.OK
     );
-    if (confirmImport !== ui.Button.YES) return;
-  }
-
-  // 5. 提示確認科目、測驗範圍、測驗日期
-  const defaultSubj = hrConfig.subjectColumn || parsedSubject;
-  const respSubject = ui.prompt("確認科目", `請確認科目名稱：`, ui.ButtonSet.OK_CANCEL);
-  if (respSubject.getSelectedButton() !== ui.Button.OK) return;
-  const finalSubject = respSubject.getResponseText().trim() || defaultSubj;
-
-  const respRange = ui.prompt("測驗範圍", "請輸入測驗範圍/細項（例：第三單元小考）：", ui.ButtonSet.OK_CANCEL);
-  if (respRange.getSelectedButton() !== ui.Button.OK) return;
-  const rangeText = respRange.getResponseText().trim();
-
-  const defaultDate = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd");
-  const respDate = ui.prompt("測驗日期", `請確認測驗日期 (YYYY-MM-DD)：`, ui.ButtonSet.OK_CANCEL);
-  if (respDate.getSelectedButton() !== ui.Button.OK) return;
-  const testDate = respDate.getResponseText().trim() || defaultDate;
-
-  // 6. 讀取當前科任分頁成績 (A 欄座號，B 欄或第 2 欄成績)
-  const data = activeSheet.getDataRange().getValues();
-  if (data.length < 2) {
-    ui.alert("⚠️ 該分頁無成績資料！");
     return;
   }
 
-  const scoreMap = {};
-  for (let r = 1; r < data.length; r++) {
-    const key = String(data[r][0]).trim();
-    const score = data[r][1];
-    if (key !== "") {
-      scoreMap[key] = score;
-    }
-  }
+  // 4. 再次確認同步提示
+  const confirmMsg = `即將把當前分頁【${sheetName}】完整同步至：\n` +
+                     `🏫 目標導師試算表：${tutorSS.getName()}\n` +
+                     `📄 目標分頁名稱：【${sheetName}】\n\n` +
+                     `※ 若導師端已有該分頁，將進行完整更新；若無，將自動新增該分頁。\n確定要執行同步嗎？`;
+  const confirmResp = ui.alert("🔄 跨檔同步確認", confirmMsg, ui.ButtonSet.YES_NO);
+  if (confirmResp !== ui.Button.YES) return;
 
-  // 7. 寫入導師試算表
+  ss.toast(`正在將【${sheetName}】跨檔同步至導師試算表...`, "⏳ 同步處理中", -1);
+
   try {
-    ui.toast(`正在同步寫入【${parsedClass}班 導師試算表】...`, "⏳ 同步中", -1);
-    const res = addNewSubjectColumnToTutorSheet(finalSubject, rangeText, testDate, scoreMap, tutorSheet);
-    ui.alert("✅ 跨檔同步成功！", `已將【${parsedClass} ${finalSubject} - ${rangeText}】成功寫入導師試算表 (${tutorSS.getName()}) 之【${tutorSheet.getName()}】第 ${res.addedColumn} 欄！`, ui.ButtonSet.OK);
-  } catch (err) {
-    ui.alert("❌ 跨檔同步失敗", err.message, ui.ButtonSet.OK);
+    // 5. 執行高保真分頁同步
+    // 使用 copyTo 確保儲存格格式、字體顏色、欄寬、合併儲存格與歷次測驗欄位 100% 完整複製
+    const copiedSheet = activeSheet.copyTo(tutorSS);
+    const existingTargetSheet = tutorSS.getSheetByName(sheetName);
+
+    if (existingTargetSheet) {
+      // 導師端已有該分頁：記錄原本的位置 index，刪除舊分頁，將新分頁改名並移至原位置
+      const origIndex = existingTargetSheet.getIndex();
+      tutorSS.deleteSheet(existingTargetSheet);
+      copiedSheet.setName(sheetName);
+      tutorSS.setActiveSheet(copiedSheet);
+      tutorSS.moveActiveSheet(origIndex);
+    } else {
+      // 導師端尚無該分頁：直接改為標準名稱
+      copiedSheet.setName(sheetName);
+    }
+
+    ui.alert(
+      "✅ 跨檔同步成功！",
+      `已成功將【${sheetName}】分頁完整同步至：\n` +
+      `📁 導師試算表：${tutorSS.getName()}\n` +
+      `📑 分頁名稱：【${sheetName}】\n\n` +
+      `導師端現在可直接查閱完整的學生名冊與歷次測驗成績！`,
+      ui.ButtonSet.OK
+    );
+  } catch (syncErr) {
+    ui.alert("❌ 同步過程發生錯誤", syncErr.message, ui.ButtonSet.OK);
   }
 }
 
@@ -4207,7 +4336,7 @@ function createSubjectAnalyticsSheetUI() {
   if (resp.getSelectedButton() === ui.Button.OK) {
     const idx = parseInt(resp.getResponseText().trim(), 10) - 1;
     if (idx >= 0 && idx < groups.length) {
-      ui.toast("正在運算跨班數據並產出報表...", "⏳ 處理中", -1);
+      SpreadsheetApp.getActiveSpreadsheet().toast("正在運算跨班數據並產出報表...", "⏳ 處理中", -1);
       const res = generateSubjectClassCrossAnalyticsSheet(groups[idx].groupKey);
       ui.alert(res);
     } else {
@@ -4314,54 +4443,55 @@ function recognizeUploadedImages(imagesData) {
     tutorStudentMap[st.seat] = st.name;
   });
 
-  const prompt = `你是一個精準的手寫成績單 OCR 辨識助手。請仔細分析這張成績單照片，判斷其「班級」、「科目」、「評量類型」與各座號成績數據，並嚴格回傳純 JSON 格式：
+  // 💡 完全採用原本已驗證正常的 OCR Prompt 結構
+  const prompt = `你是一個精準的手寫成績單 OCR 辨識助手。請仔細分析這張成績單照片，判斷其「班級」、「科目」、「評量類型」與成績數據，並嚴格回傳純 JSON 格式：
 
-{
-  "className": "班級名稱(例如: 101, 102, 國二愛, 國二仁，未註記則填空字串)",
-  "subject": "科目名稱(例如: 國文, 英文, 數學, 理化, 歷史, 地理, 公民, 生物...)",
-  "type": "評量類型(例如: 小考, 作業, 段考, 筆記，若無標示預設填 小考)",
-  "examRange": "考試範圍或測驗單元名稱(例如: 第一章, 1-1~1-2, Unit 3，若無則填寫 無範圍)",
-  "columns": [
-    {
-      "range": "考試範圍或單元名稱",
-      "scores": [
-        {"seat": 1, "score": 85},
-        {"seat": 2, "score": 90}
-      ]
-    }
-  ]
-}
+  {
+    "className": "班級名稱(例如: 國二愛、國二仁、二仁，若無寫則填寫空字串)",
+    "subject": "科目名稱(例如: 理化、歷史、國文)",
+    "type": "評量類型(例如: 小考、段考、作業、筆記，若無標示預設填 小考)",
+    "columns": [
+      {
+        "range": "考試範圍或測驗名稱",
+        "scores": [
+          {"seat": 1, "score": 85},
+          {"seat": 2, "score": 90}
+        ]
+      }
+    ]
+  }
 
-【辨識規則說明】：
-1. 班級與科目：尋找照片頂端或標題手寫字（如「101」、「102」、「二愛」、「國二仁」、「理化小考」）。
-2. 評量類型 (type)：辨識是否有「段考」、「小考」、「作業」、「筆記」等字樣，未標示則填「小考」。
-3. 考試範圍 (examRange)：辨識範圍字樣，未註明可填「無範圍」。
-4. 座號與成績 (scores)：
-   - seat 請轉為純整數數字 (如 1, 2, 3...)。
-   - score 請轉為數值。
-   - 被劃刪除線、空白、缺考者，該座號 score 請填寫 null 或忽略。
+  【辨識規則說明】：
+  1. 班級與科目：尋找照片頂端手寫字（如「二愛」、「國二仁」、「理化小考」）。
+  2. 評量類型 (type)：辨識是否有「段考」、「小考」、「作業」、「筆記」等字樣，未標示則填「小考」。
+  3. 欄位解析 (columns) 與座號成績：
+     - seat 請轉為純整數數字 (如 1, 2, 3...)。
+     - 被劃刪除線、空白、缺考者，該座號 score 請填寫 null 或忽略。
 
-【輸出格式限制】：
-- 嚴格僅輸出純文字 JSON，絕對不要包含任何 Markdown 標記 (如 \`\`\`json)。`;
+  【輸出格式限制】：
+  - 嚴格僅輸出純文字 JSON，絕對不要包裝任何 Markdown 標籤。`;
 
+  // 💡 模型候選清單（優先 Lite -> 動態偵測 -> 穩定備援）
   const dynamicModel = getLatestFlashModelName();
   const candidateModels = Array.from(new Set([
-    "gemini-flash-lite-latest",
-    dynamicModel,
-    "gemini-flash-latest",
-    "gemini-3.6-flash",
-    "gemini-2.5-flash"
+    "gemini-flash-lite-latest",  // 1. 強制優先選用 Lite（速度快、省額度）
+    dynamicModel,                // 2. 動態偵測到的最新版 Flash 模型
+    "gemini-flash-latest",       // 3. Standard Flash 最新版 (高辨識率)
+    "gemini-3.6-flash",          // 4. 新世代強大模型備援
+    "gemini-2.5-flash"           // 5. 保底備援
   ].filter(Boolean)));
 
-  const apiKey = getActiveGeminiApiKey();
   const todayStr = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd");
   const results = [];
 
   for (let i = 0; i < imagesData.length; i++) {
     const imgItem = imagesData[i];
     const fileName = imgItem.name || `photo_${i + 1}.jpg`;
+    const fileNameLower = fileName.toLowerCase();
+
+    // 💡 容錯比照原本寫法：HEIC 與不明二進位強制正規化為 image/jpeg
     let mimeType = imgItem.mimeType || "image/jpeg";
-    if (mimeType === "application/octet-stream" || !mimeType) {
+    if (fileNameLower.endsWith(".heic") || !mimeType || mimeType === "application/octet-stream" || mimeType.includes("heic")) {
       mimeType = "image/jpeg";
     }
 
@@ -4392,10 +4522,14 @@ function recognizeUploadedImages(imagesData) {
     }
 
     let recognizedText = "";
-    let apiError = null;
+    let lastError = null;
 
-    for (const modelName of candidateModels) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    // 💡 比照原本寫法：逐一嘗試候選模型
+    for (const activeModel of candidateModels) {
+      Logger.log(`🤖 [TeacherHub OCR] 嘗試呼叫 API 模型: [${activeModel}] 處理第 ${i + 1}/${imagesData.length} 張照片...`);
+      const apiKey = getActiveGeminiApiKey();
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
+      
       const payload = {
         "contents": [{
           "parts": [
@@ -4406,60 +4540,77 @@ function recognizeUploadedImages(imagesData) {
       };
 
       try {
-        const resp = UrlFetchApp.fetch(url, {
-          method: "post",
-          contentType: "application/json",
-          payload: JSON.stringify(payload),
-          muteHttpExceptions: true
+        const response = UrlFetchApp.fetch(url, {
+          "method": "post",
+          "contentType": "application/json",
+          "payload": JSON.stringify(payload),
+          "muteHttpExceptions": true
         });
 
-        const json = JSON.parse(resp.getContentText());
-        if (json.error) {
-          const msg = json.error.message || "";
-          if (msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("not found") || json.error.code === 429) {
-            apiError = new Error(`[${modelName}] 額度不足或忙碌: ${msg}`);
-            continue; // 切換下一個模型
+        const result = JSON.parse(response.getContentText());
+
+        if (result.error) {
+          const errMsg = result.error.message || "";
+          if (errMsg.toLowerCase().includes("quota") || errMsg.toLowerCase().includes("not found") || result.error.code === 429) {
+            lastError = new Error(`[${activeModel}] 額度不足或失效: ${errMsg}`);
+            continue;
           }
-          throw new Error(`Gemini API 錯誤: ${msg}`);
+          throw new Error(`Gemini API 錯誤: ${errMsg}`);
         }
 
-        if (json.candidates && json.candidates.length > 0 && json.candidates[0].content) {
-          recognizedText = json.candidates[0].content.parts[0].text;
-          apiError = null;
-          break; // 成功取得
+        if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
+          recognizedText = result.candidates[0].content.parts[0].text;
+          lastError = null;
+          break; // 成功取得內容
         }
       } catch (err) {
-        apiError = err;
+        lastError = err;
+        Logger.log(`⚠️ 模型 [${activeModel}] 呼叫失敗: ${err.message}`);
       }
     }
 
     if (!recognizedText) {
-      singleResult.error = apiError ? apiError.message : "無法取得辨識內容";
+      singleResult.error = lastError ? lastError.message : "無法取得辨識內容";
       results.push(singleResult);
       continue;
     }
 
-    // 解析 JSON
+    // 💡 健壯的 JSON 解析 (排除 Markdown 與前後無關字串)
     try {
       let cleanText = recognizedText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(cleanText);
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanText = jsonMatch[0];
+      }
+      const parsedData = JSON.parse(cleanText);
 
-      let parsedClass = parsed.className ? normalizeClassName(parsed.className.trim()) : "";
-      if (!parsedClass) parsedClass = mainClassName;
+      let rawClass = parsedData.className ? parsedData.className.trim() : "";
+      let recognizedClass = normalizeClassName(rawClass);
+      if (!recognizedClass) recognizedClass = mainClassName;
 
-      let parsedSubj = parsed.subject ? parsed.subject.trim() : "理化";
-      let parsedType = parsed.type ? parsed.type.trim() : "小考";
-      let parsedRange = parsed.examRange ? parsed.examRange.trim() : "";
+      // 💡 科目名稱比照原本：取前兩個字，避免「理化科」等失配
+      const subject = parsedData.subject ? parsedData.subject.substring(0, 2).trim() : "理化";
+      const evalType = parsedData.type ? parsedData.type.trim() : "小考";
+      const columns = parsedData.columns || [];
 
-      const scoreItems = [];
+      let examRange = "無範圍";
       const scoreMap = new Map();
 
-      if (parsed.columns && Array.isArray(parsed.columns) && parsed.columns.length > 0) {
-        if (!parsedRange && parsed.columns[0].range) {
-          parsedRange = parsed.columns[0].range;
-        }
-        const colScores = parsed.columns[0].scores || [];
-        colScores.forEach(item => {
+      // 支援多欄或單欄格式
+      if (columns.length > 0 && Array.isArray(columns[0].scores)) {
+        examRange = columns[0].range || "無範圍";
+        columns[0].scores.forEach(item => {
+          if (item.seat !== undefined && item.seat !== null && item.score !== null && item.score !== undefined) {
+            const seatNum = parseInt(item.seat, 10);
+            const scoreVal = Number(item.score);
+            if (!isNaN(seatNum) && !isNaN(scoreVal)) {
+              scoreMap.set(seatNum, scoreVal);
+            }
+          }
+        });
+      } else if (Array.isArray(parsedData.scores)) {
+        examRange = parsedData.examRange || parsedData.range || "無範圍";
+        parsedData.scores.forEach(item => {
           if (item.seat !== undefined && item.seat !== null && item.score !== null && item.score !== undefined) {
             const seatNum = parseInt(item.seat, 10);
             const scoreVal = Number(item.score);
@@ -4470,9 +4621,8 @@ function recognizeUploadedImages(imagesData) {
         });
       }
 
-      // 如果有對應導師班學生名單，依序填入姓名
+      const scoreItems = [];
       if (scoreMap.size > 0) {
-        // 依座號排序
         const sortedSeats = Array.from(scoreMap.keys()).sort((a, b) => a - b);
         sortedSeats.forEach(stNum => {
           scoreItems.push({
@@ -4483,12 +4633,15 @@ function recognizeUploadedImages(imagesData) {
         });
       }
 
-      singleResult.recognizedSuccess = true;
-      singleResult.className = parsedClass;
-      singleResult.subject = parsedSubj;
-      singleResult.type = parsedType;
-      singleResult.examRange = parsedRange || "無範圍";
+      singleResult.recognizedSuccess = (scoreItems.length > 0);
+      singleResult.className = recognizedClass;
+      singleResult.subject = subject;
+      singleResult.type = evalType;
+      singleResult.examRange = examRange;
       singleResult.scores = scoreItems;
+      if (scoreItems.length === 0) {
+        singleResult.error = "未辨識出任何有效座號成績，請確認照片內容是否清晰。";
+      }
     } catch (parseErr) {
       singleResult.error = `解析辨識結果失敗: ${parseErr.message} (原始回應: ${recognizedText.substring(0, 100)})`;
     }
@@ -4860,6 +5013,16 @@ function showTeacherHubDialog() {
     .setHeight(880)
     .setTitle("🌟 教師全功能主控台 (成績辨識 / 導師主控 / 科任主控)");
   SpreadsheetApp.getUi().showModalDialog(html, "🌟 教師全功能主控台");
+}
+
+/**
+ * 試算表選單呼叫：開啟教師隨身使用指南與 QA 諮詢側邊欄
+ */
+function showQASidebar() {
+  const html = HtmlService.createTemplateFromFile("SidebarQA")
+    .evaluate()
+    .setTitle("💡 教師使用指南 & QA 諮詢");
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 
@@ -5379,5 +5542,733 @@ function executeClearDemoData(mode) {
   } catch (err) {
     Logger.log("executeClearDemoData error: " + err.message);
     return { success: false, message: "清理示範資料失敗: " + err.message };
+  }
+}
+
+
+// ==========================================
+// 12. LINE Bot 官方帳號整合與教師名冊身分綁定模組
+// ==========================================
+
+/**
+ * LINE Messaging API Webhook 接收進入點 (HTTP POST)
+ * 用於接收加好友 (follow)、傳送訊息 (message)、封鎖/刪除好友 (unfollow) 等事件
+ */
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "no_data" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const config = getSystemConfig(true);
+    const token = config.LINE_CHANNEL_ACCESS_TOKEN;
+    if (!token) {
+      Logger.log("⚠️ [LINE Bot] LINE_CHANNEL_ACCESS_TOKEN 尚未在 [System_Settings] 中設定！");
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "LINE token not configured" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const data = JSON.parse(e.postData.contents);
+    const events = data.events || [];
+
+    for (let i = 0; i < events.length; i++) {
+      handleLineWebhookEvent(events[i], token);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    Logger.log("doPost 處理異常: " + err.message + "\n" + err.stack);
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * 分流處理各種類型的 LINE Webhook 事件
+ */
+function handleLineWebhookEvent(event, token) {
+  if (!event || !event.type) return;
+
+  const eventType = event.type;
+  const replyToken = event.replyToken;
+  const source = event.source || {};
+  const userId = source.userId;
+
+  if (!userId) return;
+
+  // 1. 使用者加入好友或解除封鎖 (follow 事件)
+  if (eventType === "follow") {
+    handleLineFollowEvent(replyToken, userId, token);
+    return;
+  }
+
+  // 2. 接收文字訊息 (message 事件)
+  if (eventType === "message" && event.message && event.message.type === "text") {
+    const userText = String(event.message.text || "").trim();
+    handleLineTextMessageEvent(replyToken, userId, userText, token);
+    return;
+  }
+
+  // 3. 使用者封鎖或刪除好友 (unfollow 事件)
+  if (eventType === "unfollow") {
+    handleLineUnfollowEvent(userId);
+    return;
+  }
+}
+
+/**
+ * 處理使用者加入 LINE 機器人好友事件 (follow)
+ * 引導同事輸入「姓名」與「Email」
+ */
+function handleLineFollowEvent(replyToken, userId, token) {
+  const profile = getLineUserProfile(userId, token);
+  const displayName = profile ? profile.displayName : "老師";
+
+  // 檢查是否已在名冊中綁定過
+  const existingTeacher = findTeacherByLineUid(userId);
+  if (existingTeacher) {
+    const welcomeBackMsg = 
+      `老師好！歡迎回到【成績管理系統 教師通知機器人】👋\n\n` +
+      `您好，${existingTeacher.name} 老師！系統中已記錄您的綁定資訊：\n` +
+      `📚 任教科別：${existingTeacher.subject || "未註記"}\n` +
+      `🏫 負責班級：${existingTeacher.classes || "未註記"}\n` +
+      `📱 LINE 暱稱：${displayName}\n` +
+      `⏰ 綁定時間：${existingTeacher.bindingTime || "已記錄"}\n\n` +
+      `若需重新綁定或更新 Email，請隨時回覆「姓名」與「新 Email」即可！`;
+    replyLineMessage(replyToken, [{ type: "text", text: welcomeBackMsg }], token);
+    return;
+  }
+
+  // 尚未綁定：發送親切歡迎與引導輸入訊息
+  const guideMsg = 
+    `老師您好！歡迎加入【成績管理系統 教師通知機器人】🎉\n\n` +
+    `為了讓系統能為您提供專屬的「班級成績分析」、「學期成績異動推播」與「跨檔同步通知」，請先完成教師身分綁定！\n\n` +
+    `👉 請直接回覆您的【真實姓名】與【學校 Email】：\n` +
+    `（可分行輸入，或以空格隔開）\n\n` +
+    `【輸入範例】：\n` +
+    `王小明 teacher@gmail.com\n` +
+    `（或分兩行：\n王小明\nteacher@gmail.com）\n\n` +
+    `收到後系統將自動於教師名冊中比對並為您完成綁定！✨`;
+
+  replyLineMessage(replyToken, [{ type: "text", text: guideMsg }], token);
+}
+
+/**
+ * 處理文字訊息事件 (message)
+ * 辨識指令、身分綁定資料 (姓名與 Email)
+ */
+function handleLineTextMessageEvent(replyToken, userId, userText, token) {
+  const lowerText = userText.toLowerCase();
+
+  // 1. 說明與幫助
+  if (lowerText === "說明" || lowerText === "幫助" || lowerText === "help" || lowerText === "功能") {
+    const helpMsg = 
+      `📖【成績管理系統 LINE Bot 使用說明】\n\n` +
+      `1️⃣ 身分綁定：\n` +
+      `回覆「姓名 Email」，例如：\n` +
+      `王小明 teacher@gmail.com\n\n` +
+      `2️⃣ 查詢綁定狀態：\n` +
+      `輸入「查詢」或「我的狀態」\n\n` +
+      `3️⃣ 解除綁定：\n` +
+      `輸入「解除綁定」`;
+    replyLineMessage(replyToken, [{ type: "text", text: helpMsg }], token);
+    return;
+  }
+
+  // 2. 查詢個人狀態
+  if (lowerText === "查詢" || lowerText === "我的狀態" || lowerText === "我的資訊" || lowerText === "個人資料") {
+    const teacher = findTeacherByLineUid(userId);
+    if (teacher) {
+      const infoMsg = 
+        `📋【教師身分認證資訊】\n\n` +
+        `👤 教師姓名：${teacher.name}\n` +
+        `📧 電子郵件：${teacher.email || "未註記"}\n` +
+        `📚 任教科別：${teacher.subject || "未註記"}\n` +
+        `🏫 負責班級：${teacher.classes || "未註記"}\n` +
+        `📱 LINE 暱稱：${teacher.nickname || "已綁定"}\n` +
+        `⏰ 綁定時間：${teacher.bindingTime || "已記錄"}\n` +
+        `🟢 認證狀態：已成功綁定\n\n` +
+        `若需更新 Email 或更換身分，請直接重新輸入「姓名 Email」！`;
+      replyLineMessage(replyToken, [{ type: "text", text: infoMsg }], token);
+    } else {
+      const notBoundMsg = 
+        `⚠️ 您的 LINE 帳號尚未完成教師身分綁定！\n\n` +
+        `👉 請直接回覆您的【真實姓名】與【學校 Email】：\n` +
+        `範例：王小明 teacher@gmail.com`;
+      replyLineMessage(replyToken, [{ type: "text", text: notBoundMsg }], token);
+    }
+    return;
+  }
+
+  // 3. 解除綁定
+  if (lowerText === "解除綁定") {
+    const success = unbindTeacherLineUid(userId);
+    if (success) {
+      replyLineMessage(replyToken, [{ type: "text", text: "✅ 已成功解除您的教師身分綁定！若日後需要接收通知，隨時可重新輸入「姓名 Email」進行綁定。" }], token);
+    } else {
+      replyLineMessage(replyToken, [{ type: "text", text: "您目前尚未綁定任何教師身分。" }], token);
+    }
+    return;
+  }
+
+  // 4. 解析「姓名」與「Email」進行身分綁定
+  // 使用正則表達式擷取 Email
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+  const emailMatch = userText.match(emailRegex);
+
+  if (emailMatch) {
+    const email = emailMatch[0].trim().toLowerCase();
+    // 移除 Email 字串，去除常見標點符號與空白，取得純姓名
+    const rawName = userText
+      .replace(emailMatch[0], "")
+      .replace(/[\s,\/，、；;:()（）\[\]【】\-_+=\|]/g, "")
+      .trim();
+
+    if (rawName.length >= 2) {
+      processTeacherBinding(replyToken, userId, rawName, email, token);
+      return;
+    } else {
+      replyLineMessage(replyToken, [{
+        type: "text",
+        text: `已收到您的電子郵件 (${email})，但尚未偵測到您的姓名！\n\n👉 請一併回覆您的【姓名】與【Email】：\n範例：王小明 ${email}`
+      }], token);
+      return;
+    }
+  }
+
+  // 若未包含 Email，檢查使用者是否單純只輸入了姓名 (2~5 字)
+  const cleanName = userText.replace(/[\s,\/，、；;:()（）\[\]【】\-_+=\|]/g, "").trim();
+  if (cleanName.length >= 2 && cleanName.length <= 5) {
+    // 嘗試在名冊中尋找
+    const sheet = getTeacherListSheet();
+    if (sheet) {
+      const cols = getTeacherListColumnIndices(sheet);
+      const lastR = sheet.getLastRow();
+      if (lastR >= 2) {
+        const names = sheet.getRange(2, cols.nameCol, lastR - 1, 1).getValues();
+        let found = false;
+        for (let i = 0; i < names.length; i++) {
+          if (String(names[i][0]).replace(/\s/g, "") === cleanName) {
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          replyLineMessage(replyToken, [{
+            type: "text",
+            text: `已在教師名冊中找到「${cleanName}」老師！🙋\n\n🔒 為了確保是您本人操作，請再回覆您的【學校 Email】以完成安全身分綁定！\n\n範例：\n${cleanName} teacher@gmail.com`
+          }], token);
+          return;
+        }
+      }
+    }
+  }
+
+  // 格式不符時的預設引導訊息
+  const defaultGuide = 
+    `老師您好！系統無法辨識您的身分資料格式。\n\n` +
+    `👉 若要完成身分綁定，請直接回覆您的【真實姓名】與【學校 Email】：\n` +
+    `（可分行輸入，或以空格隔開）\n\n` +
+    `【輸入範例】：\n` +
+    `王小明 teacher@gmail.com\n\n` +
+    `（若需查詢已綁定資料，可輸入「查詢」）`;
+
+  replyLineMessage(replyToken, [{ type: "text", text: defaultGuide }], token);
+}
+
+/**
+ * 處理使用者封鎖或刪除好友 (unfollow)
+ */
+function handleLineUnfollowEvent(userId) {
+  try {
+    const sheet = getTeacherListSheet();
+    if (!sheet) return;
+    const cols = getTeacherListColumnIndices(sheet);
+    const lastR = sheet.getLastRow();
+    if (lastR < 2) return;
+
+    const uids = sheet.getRange(2, cols.uidCol, lastR - 1, 1).getValues();
+    for (let i = 0; i < uids.length; i++) {
+      if (String(uids[i][0]).trim() === userId) {
+        const row = i + 2;
+        sheet.getRange(row, cols.statusCol).setValue("已封鎖/解除好友");
+      }
+    }
+  } catch (e) {
+    Logger.log("handleLineUnfollowEvent 異常: " + e.message);
+  }
+}
+
+/**
+ * 執行教師名冊身分比對與 LINE UID / 暱稱寫入
+ */
+function processTeacherBinding(replyToken, userId, teacherName, inputEmail, token) {
+  const sheet = getTeacherListSheet();
+  if (!sheet) {
+    replyLineMessage(replyToken, [{
+      type: "text",
+      text: "⚠️ 試算表中尚未建立【Teacher_List】教師名冊分頁！\n\n請聯繫系統管理員於 Google 試算表頂端選單點選「🤖 LINE Bot 與教師名冊 -> 📋 建立/檢查 [Teacher_List] 教師名冊分頁」後，再重新嘗試綁定。"
+    }], token);
+    return;
+  }
+
+  const cols = getTeacherListColumnIndices(sheet);
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) {
+    replyLineMessage(replyToken, [{
+      type: "text",
+      text: "⚠️【Teacher_List】教師名冊目前無任何教師資料！請請管理員先將教師姓名與資料登記至分頁中。"
+    }], token);
+    return;
+  }
+
+  const data = sheet.getRange(2, 1, lastRow - 1, Math.max(sheet.getLastColumn(), 8)).getValues();
+  const searchName = teacherName.replace(/\s/g, "");
+  const searchEmail = inputEmail.trim().toLowerCase();
+
+  let targetRowIndex = -1;
+  let targetRowData = null;
+
+  // 1. 在名冊中尋找姓名相符之列
+  for (let i = 0; i < data.length; i++) {
+    const rowName = String(data[i][cols.nameCol - 1] || "").replace(/\s/g, "");
+    if (rowName && rowName === searchName) {
+      targetRowIndex = i + 2;
+      targetRowData = data[i];
+      break;
+    }
+  }
+
+  // 查無此姓名
+  if (targetRowIndex === -1) {
+    const notFoundMsg = 
+      `⚠️ 查無此教師資料\n\n` +
+      `在教師名冊中未找到姓名為「${teacherName}」的紀錄。\n\n` +
+      `💡 請確認：\n` +
+      `1. 是否輸入學校登記之真實全名（非別名或英文縮寫）\n` +
+      `2. 請確認管理員是否已將您的姓名登記至【Teacher_List】試算表分頁中\n\n` +
+      `確認無誤後，請再次輸入姓名與 Email 重新嘗試！`;
+    replyLineMessage(replyToken, [{ type: "text", text: notFoundMsg }], token);
+    return;
+  }
+
+  // 2. 比對 Email (若名冊中該列 Email 為空，自動補充填入；若已有填寫，則需相符以確保安全)
+  const existingEmail = String(targetRowData[cols.emailCol - 1] || "").trim().toLowerCase();
+  if (existingEmail && existingEmail !== searchEmail) {
+    const emailMismatchMsg = 
+      `⚠️ 電子郵件不相符\n\n` +
+      `已找到「${teacherName}」老師，但您輸入的 Email (${inputEmail}) 與系統名冊中登記的信箱不一致！\n\n` +
+      `💡 請確認是否輸入學校官方信箱，或聯繫管理員更新名冊中的 Email 資料。`;
+    replyLineMessage(replyToken, [{ type: "text", text: emailMismatchMsg }], token);
+    return;
+  }
+
+  // 若原名冊中尚未填寫 Email，自動為老師填入此 Email
+  if (!existingEmail) {
+    sheet.getRange(targetRowIndex, cols.emailCol).setValue(inputEmail);
+  }
+
+  // 3. 取得 LINE Profile (暱稱)
+  const profile = getLineUserProfile(userId, token);
+  const nickname = profile ? (profile.displayName || "LINE 用戶") : "LINE 用戶";
+  const nowStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy/MM/dd HH:mm:ss");
+
+  // 4. 連帶紀錄 LINE_UID、暱稱、綁定時間與狀態
+  sheet.getRange(targetRowIndex, cols.uidCol).setValue(userId);
+  sheet.getRange(targetRowIndex, cols.nicknameCol).setValue(nickname);
+  sheet.getRange(targetRowIndex, cols.timeCol).setValue(nowStr);
+  sheet.getRange(targetRowIndex, cols.statusCol).setValue("已綁定");
+
+  const subject = String(targetRowData[cols.subjectCol - 1] || "");
+  const classes = String(targetRowData[cols.classCol - 1] || "");
+
+  // 5. 回覆綁定成功訊息
+  const successMsg = 
+    `🎉 恭喜您，身分綁定成功！\n\n` +
+    `【教師身分認證資訊】\n` +
+    `👤 教師姓名：${teacherName}\n` +
+    `📧 電子郵件：${inputEmail}\n` +
+    `📚 任教科別：${subject || "未註記"}\n` +
+    `🏫 負責班級：${classes || "未註記"}\n` +
+    `📱 LINE 暱稱：${nickname}\n` +
+    `⏰ 綁定時間：${nowStr}\n\n` +
+    `系統已成功將您的 LINE 帳號完成認證！\n` +
+    `未來當有學生成績異動、跨檔同步完成或需要提醒時，系統將會透過此 LINE 官方帳號即時通知您！✨`;
+
+  replyLineMessage(replyToken, [{ type: "text", text: successMsg }], token);
+}
+
+/**
+ * 取得試算表中的教師名冊分頁 (相容 Teacher_List, teacher list, 教師名冊 等名稱)
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet|null}
+ */
+function getTeacherListSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    const s = sheets[i];
+    const name = s.getName().trim().toLowerCase().replace(/[\s_\-]/g, "");
+    if (name === "teacherlist" || name === "教師名冊" || name === "教師清單" || name === "老師名冊") {
+      return s;
+    }
+  }
+  return null;
+}
+
+/**
+ * 依表頭關鍵字動態解析 Teacher_List 各欄位之 1-based 欄號
+ */
+function getTeacherListColumnIndices(sheet) {
+  const defaultIndices = {
+    nameCol: 1,     // A: 教師姓名
+    emailCol: 2,    // B: 電子郵件
+    subjectCol: 3,  // C: 任教科目/職稱
+    classCol: 4,    // D: 任教班級/導師班
+    uidCol: 5,      // E: LINE_UID
+    nicknameCol: 6, // F: LINE_暱稱
+    timeCol: 7,     // G: 綁定時間
+    statusCol: 8    // H: 狀態
+  };
+
+  if (!sheet) return defaultIndices;
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return defaultIndices;
+
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || "").trim().toLowerCase());
+
+  for (let c = 0; c < headers.length; c++) {
+    const h = headers[c];
+    const colNum = c + 1;
+    if (h.includes("姓名") || h.includes("name")) {
+      defaultIndices.nameCol = colNum;
+    } else if (h.includes("email") || h.includes("郵件") || h.includes("信箱") || h.includes("mail")) {
+      defaultIndices.emailCol = colNum;
+    } else if (h.includes("科目") || h.includes("科別") || h.includes("職稱") || h.includes("subject")) {
+      defaultIndices.subjectCol = colNum;
+    } else if (h.includes("班級") || h.includes("導師班") || h.includes("class")) {
+      defaultIndices.classCol = colNum;
+    } else if (h.includes("uid") || h.includes("line_uid") || h.includes("userid")) {
+      defaultIndices.uidCol = colNum;
+    } else if (h.includes("暱稱") || h.includes("nickname") || h.includes("line_暱稱")) {
+      defaultIndices.nicknameCol = colNum;
+    } else if (h.includes("時間") || h.includes("time") || h.includes("日期")) {
+      defaultIndices.timeCol = colNum;
+    } else if (h.includes("狀態") || h.includes("status")) {
+      defaultIndices.statusCol = colNum;
+    }
+  }
+
+  return defaultIndices;
+}
+
+/**
+ * 透過 LINE User ID 在 Teacher_List 中查詢教師資料
+ */
+function findTeacherByLineUid(userId) {
+  if (!userId) return null;
+  const sheet = getTeacherListSheet();
+  if (!sheet) return null;
+
+  const cols = getTeacherListColumnIndices(sheet);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+
+  const data = sheet.getRange(2, 1, lastRow - 1, Math.max(sheet.getLastColumn(), 8)).getValues();
+  for (let i = 0; i < data.length; i++) {
+    const rowUid = String(data[i][cols.uidCol - 1] || "").trim();
+    if (rowUid === userId) {
+      return {
+        row: i + 2,
+        name: String(data[i][cols.nameCol - 1] || "").trim(),
+        email: String(data[i][cols.emailCol - 1] || "").trim(),
+        subject: String(data[i][cols.subjectCol - 1] || "").trim(),
+        classes: String(data[i][cols.classCol - 1] || "").trim(),
+        uid: rowUid,
+        nickname: String(data[i][cols.nicknameCol - 1] || "").trim(),
+        bindingTime: String(data[i][cols.timeCol - 1] || "").trim(),
+        status: String(data[i][cols.statusCol - 1] || "").trim()
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * 解除指定 LINE User ID 的身分綁定
+ */
+function unbindTeacherLineUid(userId) {
+  if (!userId) return false;
+  const sheet = getTeacherListSheet();
+  if (!sheet) return false;
+
+  const cols = getTeacherListColumnIndices(sheet);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return false;
+
+  const data = sheet.getRange(2, cols.uidCol, lastRow - 1, 1).getValues();
+  for (let i = 0; i < data.length; i++) {
+    if (String(data[i][0]).trim() === userId) {
+      const row = i + 2;
+      sheet.getRange(row, cols.uidCol).setValue("");
+      sheet.getRange(row, cols.nicknameCol).setValue("");
+      sheet.getRange(row, cols.statusCol).setValue("未綁定");
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 呼叫 LINE Reply Message API 發送回覆訊息
+ */
+function replyLineMessage(replyToken, messages, token) {
+  if (!replyToken || replyToken === "00000000000000000000000000000000") return; // LINE Webhook 測試事件忽略
+  if (!messages || messages.length === 0) return;
+
+  const url = "https://api.line.me/v2/bot/message/reply";
+  const payload = {
+    replyToken: replyToken,
+    messages: messages
+  };
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "Authorization": "Bearer " + token
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const resp = UrlFetchApp.fetch(url, options);
+    const code = resp.getResponseCode();
+    if (code !== 200) {
+      Logger.log(`LINE Reply 失敗 (HTTP ${code}): ${resp.getContentText()}`);
+    }
+  } catch (e) {
+    Logger.log(`replyLineMessage 呼叫異常: ${e.message}`);
+  }
+}
+
+/**
+ * 取得 LINE 使用者個人公開資訊 (取得 displayName 暱稱)
+ */
+function getLineUserProfile(userId, token) {
+  if (!userId || !token) return null;
+  const url = `https://api.line.me/v2/bot/profile/${encodeURIComponent(userId)}`;
+  const options = {
+    method: "get",
+    headers: {
+      "Authorization": "Bearer " + token
+    },
+    muteHttpExceptions: true
+  };
+
+  try {
+    const resp = UrlFetchApp.fetch(url, options);
+    if (resp.getResponseCode() === 200) {
+      return JSON.parse(resp.getContentText());
+    } else {
+      Logger.log(`getLineUserProfile 失敗 (HTTP ${resp.getResponseCode()}): ${resp.getContentText()}`);
+    }
+  } catch (e) {
+    Logger.log(`getLineUserProfile 異常: ${e.message}`);
+  }
+  return null;
+}
+
+/**
+ * 主動推播訊息給指定 LINE User ID (可用於成績通知、同步完成通知等)
+ * @param {string} userId LINE User ID
+ * @param {Array<Object>} messages LINE 訊息陣列 (例如: [{type: 'text', text: '...' }])
+ * @param {string} [token] 選填，未填時自動讀取 System_Settings
+ */
+function pushLineMessage(userId, messages, token) {
+  if (!userId || !messages || messages.length === 0) return false;
+  if (!token) {
+    const config = getSystemConfig(true);
+    token = config.LINE_CHANNEL_ACCESS_TOKEN;
+  }
+  if (!token) {
+    Logger.log("pushLineMessage 失敗: 未設定 LINE_CHANNEL_ACCESS_TOKEN");
+    return false;
+  }
+
+  const url = "https://api.line.me/v2/bot/message/push";
+  const payload = {
+    to: userId,
+    messages: messages
+  };
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "Authorization": "Bearer " + token
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const resp = UrlFetchApp.fetch(url, options);
+    return resp.getResponseCode() === 200;
+  } catch (e) {
+    Logger.log(`pushLineMessage 異常: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * 一鍵建立或初始化 [Teacher_List] 教師名冊分頁
+ */
+function initTeacherListSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = getTeacherListSheet();
+  const ui = SpreadsheetApp.getUi();
+
+  const standardHeaders = [
+    "教師姓名",
+    "電子郵件",
+    "任教科目/職稱",
+    "任教班級/導師班",
+    "LINE_UID",
+    "LINE_暱稱",
+    "綁定時間",
+    "狀態"
+  ];
+
+  if (sheet) {
+    const resp = ui.alert(
+      "提示",
+      `已偵測到教師名冊分頁 [${sheet.getName()}]！\n是否要檢查並補充缺少之欄位表頭？（現有教師資料將完整保留）`,
+      ui.ButtonSet.YES_NO
+    );
+    if (resp !== ui.Button.YES) return;
+
+    // 檢查第一列表頭，若缺少標準欄位則在右側自動補齊
+    const lastCol = Math.max(sheet.getLastColumn(), 1);
+    const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || "").trim());
+
+    standardHeaders.forEach(sh => {
+      if (!existingHeaders.includes(sh)) {
+        const nextCol = sheet.getLastColumn() + 1;
+        sheet.getRange(1, nextCol).setValue(sh);
+        existingHeaders.push(sh);
+      }
+    });
+
+    sheet.getRange(1, 1, 1, sheet.getLastColumn())
+      .setBackground("#1b5e20")
+      .setFontColor("#ffffff")
+      .setFontWeight("bold")
+      .setHorizontalAlignment("center");
+
+    ui.alert(`✅ 教師名冊分頁 [${sheet.getName()}] 欄位檢查與優化完成！`);
+    ss.setActiveSheet(sheet);
+    return;
+  }
+
+  // 若不存在則全新建立 Teacher_List
+  sheet = ss.insertSheet("Teacher_List");
+
+  // 1. 設定標準表頭
+  sheet.getRange(1, 1, 1, standardHeaders.length)
+    .setValues([standardHeaders])
+    .setBackground("#1b5e20")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold")
+    .setHorizontalAlignment("center");
+
+  // 2. 插入示範資料
+  const sampleData = [
+    ["王小明", "wang_teacher@example.com", "數學", "101, 102", "", "", "", "待綁定"],
+    ["陳美麗", "chen_teacher@example.com", "英文 / 導師", "101", "", "", "", "待綁定"],
+    ["林志豪", "lin_teacher@example.com", "自然理化", "102, 103", "", "", "", "待綁定"]
+  ];
+
+  sheet.getRange(2, 1, sampleData.length, standardHeaders.length)
+    .setValues(sampleData)
+    .setHorizontalAlignment("center");
+
+  // 3. 格式美化
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, standardHeaders.length);
+  sheet.setColumnWidth(1, 100); // 姓名
+  sheet.setColumnWidth(2, 220); // Email
+  sheet.setColumnWidth(3, 120); // 科目
+  sheet.setColumnWidth(4, 130); // 班級
+  sheet.setColumnWidth(5, 260); // LINE_UID
+  sheet.setColumnWidth(6, 140); // 暱稱
+  sheet.setColumnWidth(7, 160); // 綁定時間
+  sheet.setColumnWidth(8, 100); // 狀態
+
+  ss.setActiveSheet(sheet);
+
+  ui.alert(
+    "✅ [Teacher_List] 教師名冊分頁建立完成！\n\n" +
+    "📌 使用指引：\n" +
+    "1. 請將全校或參與系統之教師「姓名」、「電子郵件」、「任教科別」填入此分頁中。\n" +
+    "2. 當同事加入您的 LINE 官方帳號並回覆「姓名 Email」後，系統會自動比對並填入 LINE_UID 與 LINE_暱稱！"
+  );
+}
+
+/**
+ * 測試 LINE Bot 連線與推播功能
+ */
+function testLineBotConnection() {
+  const ui = SpreadsheetApp.getUi();
+  const config = getSystemConfig(true);
+  const token = config.LINE_CHANNEL_ACCESS_TOKEN;
+
+  if (!token) {
+    ui.alert(
+      "⚠️ 尚未設定 LINE Channel Access Token",
+      "請先至 [System_Settings] 基礎設定分頁的 A 欄找到「LINE_CHANNEL_ACCESS_TOKEN」，並在 B 欄貼上您的 LINE 官方帳號長期存取權杖（Channel Access Token）。",
+      ui.ButtonSet.OK
+    );
+    return;
+  }
+
+  // 呼叫 LINE Bot info API 驗證 Token 是否有效
+  const url = "https://api.line.me/v2/bot/info";
+  const options = {
+    method: "get",
+    headers: {
+      "Authorization": "Bearer " + token
+    },
+    muteHttpExceptions: true
+  };
+
+  try {
+    const resp = UrlFetchApp.fetch(url, options);
+    const code = resp.getResponseCode();
+    if (code === 200) {
+      const botInfo = JSON.parse(resp.getContentText());
+      ui.alert(
+        "🎉 LINE Bot 連線成功！",
+        `🤖 官方帳號名稱：${botInfo.displayName || "LINE 機器人"}\n` +
+        `🆔 Basic ID：${botInfo.basicId || ""}\n` +
+        `📦 權限等級：${botInfo.chatMode || "chat"}\n\n` +
+        `✅ Webhook 連線設定指引：\n` +
+        `1. 請點選 Apps Script 右上方「部署」->「管理部署作業」->「編輯」，將版本建立為新版本，權限設定為「任何人」。\n` +
+        `2. 複製 Web 應用程式網址 (結尾為 /exec)。\n` +
+        `3. 前往 LINE Developers 控制台 -> Messaging API -> Webhook URL 貼上該網址，並務必開啟「Use webhook」開關！`,
+        ui.ButtonSet.OK
+      );
+    } else {
+      ui.alert(
+        "❌ LINE Bot 連線失敗",
+        `HTTP 代碼：${code}\n訊息：${resp.getContentText()}\n\n請檢查 [System_Settings] 的 LINE_CHANNEL_ACCESS_TOKEN 是否完整貼上，無前後多餘空白。`,
+        ui.ButtonSet.OK
+      );
+    }
+  } catch (err) {
+    ui.alert("連線測試發生例外錯誤：" + err.message);
   }
 }

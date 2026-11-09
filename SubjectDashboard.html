@@ -841,8 +841,25 @@
         console.warn("無法解析 envConfig:", e);
       }
 
+      // 雙重防呆：若網址不包含 /macros/s/（代表處於試算表內部 iframe 沙盒中），一律視為內部對話框
+      if (!isModal) {
+        try {
+          const loc = window.location.href;
+          if (loc && !loc.includes("script.google.com/macros/s/")) {
+            isModal = true;
+          }
+        } catch (e) {}
+      }
+
+      let isVerified = false;
+      try {
+        isVerified = (sessionStorage.getItem(PIN_SESSION_KEY) === "true");
+      } catch (e) {
+        console.warn("存取 sessionStorage 受阻:", e);
+      }
+
       // 若由試算表對話框開啟，或已在同一 Session 通過驗證，則直接解鎖免輸 PIN 碼
-      if (isModal || sessionStorage.getItem(PIN_SESSION_KEY) === "true") {
+      if (isModal || isVerified) {
         unlockSubjectApp();
       } else {
         document.getElementById('pinAuthOverlay').style.display = "flex";
@@ -884,7 +901,12 @@
         })
         .withFailureHandler(err => {
           hideLoading();
-          errBox.innerText = "驗證通訊失敗：" + err.message;
+          const rawMsg = err && err.message ? err.message : String(err);
+          if (rawMsg.includes("PERMISSION_DENIED") || rawMsg.includes("儲存空間") || rawMsg.includes("reading from storage")) {
+            errBox.innerHTML = "⚠️ <strong>權限驗證受阻 (PERMISSION_DENIED)</strong><br><span style='font-size:12px; color:#ef4444; font-weight:normal;'>偵測到瀏覽器多個 Google 帳號登入衝突，或試算表尚未完成 Google 授權。<br>💡 <strong>排解方式</strong>：請改用 Chrome <strong>「無痕式視窗」</strong> 僅登入單一 Google 帳號，或先點擊試算表選單完成初次授權！</span>";
+          } else {
+            errBox.innerText = "驗證通訊失敗：" + rawMsg;
+          }
         })
         .verifyTeacherPin(pin);
     }

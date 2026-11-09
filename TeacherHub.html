@@ -1363,7 +1363,147 @@
       box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
     }
 
-  </style>
+
+/* ==============================================================
+       手機版響應式 (RWD) 最佳化樣式：字數自動精簡、釋放學生數據空間
+    ============================================================== */
+    .tab-text-short, .btn-text-short, .subtab-text-short {
+      display: none;
+    }
+    .tab-text-full, .btn-text-full, .subtab-text-full {
+      display: inline;
+    }
+
+    @media (max-width: 768px) {
+      /* 文字切換：隱藏冗長全名，顯示手機極簡標籤 */
+      .tab-text-full, .btn-text-full, .subtab-text-full {
+        display: none !important;
+      }
+      .tab-text-short, .btn-text-short, .subtab-text-short {
+        display: inline !important;
+      }
+      .btn-desktop-only {
+        display: none !important;
+      }
+
+      /* 頂部 Header 緊湊化：省下超過 100px 垂直高度 */
+      header {
+        padding: 6px 10px;
+        gap: 6px;
+      }
+      .brand {
+        gap: 6px;
+      }
+      .brand-icon {
+        font-size: 18px;
+        padding: 3px 6px;
+      }
+      .brand-title {
+        font-size: 15px;
+      }
+      .brand-subtitle {
+        display: none !important;
+      }
+      .header-actions {
+        gap: 4px;
+      }
+      .header-actions .btn-action {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      /* 主分頁 Tab 在手機上緊湊等寬橫排，高度僅約 34px */
+      .tab-bar {
+        width: 100%;
+        display: flex;
+        gap: 4px;
+        padding: 2px;
+        margin-top: 2px;
+      }
+      .tab-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 6px 2px;
+        font-size: 13px;
+        white-space: nowrap;
+        text-align: center;
+        gap: 4px;
+      }
+
+      /* 科任子分頁 Tab 緊湊等寬橫排 */
+      .tabs {
+        gap: 4px;
+        padding: 6px 4px 0;
+        margin-bottom: 12px;
+      }
+      .sub-tab-btn {
+        flex: 1;
+        padding: 6px 2px;
+        font-size: 12px;
+        text-align: center;
+        justify-content: center;
+        white-space: nowrap;
+      }
+
+      /* 主內容區左右邊界收窄，增加可視寬度 */
+      main {
+        padding: 10px 8px 40px 8px;
+      }
+      .card {
+        padding: 12px 10px;
+        margin-bottom: 12px;
+      }
+      .panel-card {
+        padding: 12px 10px;
+      }
+
+      /* 圖表卡片在手機上適度收斂高度，避免垂直捲動過長 */
+      .chart-box {
+        height: 250px;
+        padding: 10px;
+      }
+
+      /* 學生切換導覽列在手機上自適應 */
+      .student-selector-bar {
+        padding: 8px 10px;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .student-select {
+        max-width: none;
+        flex: 1 1 100%;
+        font-size: 14px;
+      }
+      .student-selector-bar .btn {
+        flex: 1;
+        padding: 6px 8px;
+        font-size: 12px;
+        text-align: center;
+      }
+
+      /* 科任學生搜尋列自適應 */
+      .student-search-box {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .student-search-box select {
+        flex: 1;
+      }
+
+      /* 統計數據卡在手機上為 2 欄 */
+      .stat-badge-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .stat-badge {
+        padding: 10px;
+      }
+      .stat-badge-value {
+        font-size: 20px;
+      }
+    }
+
+    </style>
 </head>
 <body>
 
@@ -1423,25 +1563,29 @@
       </div>
     </div>
 
-    <!-- 第一層主分頁導航 Tabs -->
+    <!-- 第一層主分頁導航 Tabs (手機響應式精簡標籤) -->
     <div class="tab-bar">
       <button class="tab-btn active" id="mainTabBtn-import" onclick="switchMainTab('import')">
-        <span>📸</span> 匯入成績單 (AI辨識)
+        <span>📸</span> <span class="tab-text-full">匯入成績單 (AI辨識)</span><span class="tab-text-short">匯入成績</span>
       </button>
       <button class="tab-btn" id="mainTabBtn-tutor" onclick="switchMainTab('tutor')">
-        <span>📊</span> 導師班級主控版
+        <span>📊</span> <span class="tab-text-full">導師班級主控版</span><span class="tab-text-short">導師主控</span>
       </button>
       <button class="tab-btn" id="mainTabBtn-subject" onclick="switchMainTab('subject')">
-        <span>🔬</span> 科任班級主控版
+        <span>🔬</span> <span class="tab-text-full">科任班級主控版</span><span class="tab-text-short">科任主控</span>
       </button>
     </div>
 
     <!-- 右側功能按鈕 -->
     <div class="header-actions">
-      <button class="btn-action" style="background:#10b981; border-color:#059669; font-weight:bold;" onclick="openParentShareModal()">📱 分享家長端 (QR Code)</button>
-      <button class="btn-action" onclick="toggleFullScreen()">🖥️ 全螢幕</button>
-      <button class="btn-action" onclick="window.print()">🖨️ 列印報表</button>
-      <button class="btn-action" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4);" onclick="lockTeacherHub()">🔒 鎖定登出</button>
+      <button class="btn-action" style="background:#10b981; border-color:#059669; font-weight:bold;" onclick="openParentShareModal()">
+        <span>📱</span> <span class="btn-text-full">分享家長端 (QR Code)</span><span class="btn-text-short">分享</span>
+      </button>
+      <button class="btn-action btn-desktop-only" onclick="toggleFullScreen()">🖥️ 全螢幕</button>
+      <button class="btn-action btn-desktop-only" onclick="window.print()">🖨️ 列印報表</button>
+      <button class="btn-action" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4);" onclick="lockTeacherHub()">
+        <span>🔒</span> <span class="btn-text-full">鎖定登出</span><span class="btn-text-short">登出</span>
+      </button>
     </div>
   </header>
 
@@ -1704,11 +1848,17 @@
       </div>
     </div>
 
-    <!-- 科任內部子分頁 Navigation Tabs -->
+    <!-- 科任內部子分頁 Navigation Tabs (手機響應式精簡標籤) -->
     <div class="tabs">
-      <button class="sub-tab-btn active" id="subTabBtn-macro" onclick="switchSubjectSubTab('macro')">📈 跨班橫向與趨勢比較 (Macro View)</button>
-      <button class="sub-tab-btn" id="subTabBtn-alerts" onclick="switchSubjectSubTab('alerts')">🚨 自動化預警與關注名單 (Auto-Alert)</button>
-      <button class="sub-tab-btn" id="subTabBtn-micro" onclick="switchSubjectSubTab('micro')">👤 個別學生學習歷程卡 (Micro View)</button>
+      <button class="sub-tab-btn active" id="subTabBtn-macro" onclick="switchSubjectSubTab('macro')">
+        <span>📈</span> <span class="subtab-text-full">跨班橫向與趨勢比較 (Macro View)</span><span class="subtab-text-short">跨班趨勢</span>
+      </button>
+      <button class="sub-tab-btn" id="subTabBtn-alerts" onclick="switchSubjectSubTab('alerts')">
+        <span>🚨</span> <span class="subtab-text-full">自動化預警與關注名單 (Auto-Alert)</span><span class="subtab-text-short">預警名單</span>
+      </button>
+      <button class="sub-tab-btn" id="subTabBtn-micro" onclick="switchSubjectSubTab('micro')">
+        <span>👤</span> <span class="subtab-text-full">個別學生學習歷程卡 (Micro View)</span><span class="subtab-text-short">學生歷程</span>
+      </button>
     </div>
 
     <!-- TAB 1: Macro View -->
@@ -2009,8 +2159,25 @@
         console.warn("無法解析 envConfig:", e);
       }
 
+      // 雙重防呆：若網址不包含 /macros/s/（代表處於試算表內部 iframe 沙盒中），一律視為內部對話框
+      if (!isModal) {
+        try {
+          const loc = window.location.href;
+          if (loc && !loc.includes("script.google.com/macros/s/")) {
+            isModal = true;
+          }
+        } catch (e) {}
+      }
+
+      let isVerified = false;
+      try {
+        isVerified = (sessionStorage.getItem(PIN_SESSION_KEY) === "true");
+      } catch (e) {
+        console.warn("存取 sessionStorage 受阻:", e);
+      }
+
       // 若由試算表對話框開啟，或已在同一 Session 通過驗證，則直接解鎖免輸 PIN 碼
-      if (isModal || sessionStorage.getItem(PIN_SESSION_KEY) === "true") {
+      if (isModal || isVerified) {
         unlockApp();
       } else {
         document.getElementById('pinAuthOverlay').style.display = "flex";
@@ -2052,7 +2219,12 @@
         })
         .withFailureHandler(err => {
           hideLoading();
-          errBox.innerText = "驗證通訊失敗：" + err.message;
+          const rawMsg = err && err.message ? err.message : String(err);
+          if (rawMsg.includes("PERMISSION_DENIED") || rawMsg.includes("儲存空間") || rawMsg.includes("reading from storage")) {
+            errBox.innerHTML = "⚠️ <strong>權限驗證受阻 (PERMISSION_DENIED)</strong><br><span style='font-size:12px; color:#ef4444; font-weight:normal;'>偵測到瀏覽器多個 Google 帳號登入衝突，或試算表尚未完成 Google 授權。<br>💡 <strong>排解方式</strong>：請改用 Chrome <strong>「無痕式視窗」</strong> 僅登入單一 Google 帳號，或先點擊試算表選單完成初次授權！</span>";
+          } else {
+            errBox.innerText = "驗證通訊失敗：" + rawMsg;
+          }
         })
         .verifyTeacherPin(pin);
     }
@@ -2144,20 +2316,55 @@
           continue;
         }
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
+        // 💡 前端 Canvas 自動壓縮：將大照片等比縮減至長邊最大 1600px，避免超過 GAS 傳輸限制
+        compressImageFile(file, function(resultDataUrl, mimeType) {
           uploadedImages.push({
             file: file,
             name: file.name,
-            mimeType: file.type || "image/jpeg",
-            base64: e.target.result,
+            mimeType: mimeType || "image/jpeg",
+            base64: resultDataUrl,
             status: "pending",
             recognizedData: null
           });
           renderFileGrid();
-        };
-        reader.readAsDataURL(file);
+        });
       }
+    }
+
+    // 輔助函式：等比例壓縮圖片至最適合 AI 辨識的尺寸與體積 (300KB~600KB)
+    function compressImageFile(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1600;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL('image/jpeg', 0.85);
+          callback(compressed, 'image/jpeg');
+        };
+        img.onerror = function() {
+          // 若無法在 Canvas 繪製 (如部分原生 HEIC)，保留原 Base64
+          callback(dataUrl, file.type || 'image/jpeg');
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
     }
 
     function renderFileGrid() {

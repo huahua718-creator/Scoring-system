@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-size: 13px;
+      line-height: 1.5;
+      padding-bottom: 24px;
+    }
+
+    /* 頂部 Header */
+    .header {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      padding: 14px 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      z-index: 100;
+    }
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .search-box {
+      position: relative;
+      margin-top: 6px;
+    }
+    .search-input {
+      width: 100%;
+      padding: 7px 12px 7px 30px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.95);
+      color: #0f172a;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-input:focus {
+      background: white;
+      box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.5);
+    }
+    .search-icon {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    /* 分類標籤頁 (Tabs) */
+    .tabs-bar {
+      display: flex;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 4px 8px 0;
+      gap: 4px;
+      position: sticky;
+      top: 86px;
+      z-index: 90;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 7px 2px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+    .tab-btn:hover:not(.active) {
+      color: #1e293b;
+    }
+
+    /* 快捷控制列 */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .tool-link {
+      color: #2563eb;
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .tool-link:hover {
+      text-decoration: underline;
+    }
+
+    /* 主要內容容器 */
+    .content-area {
+      padding: 10px 12px;
+    }
+
+    /* 區塊標題 */
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 14px 4px 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* 手風琴卡片 Accordion */
+    .acc-item {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      transition: all 0.2s;
+    }
+    .acc-item:hover {
+      border-color: #cbd5e1;
+    }
+    .acc-header {
+      padding: 9px 12px;
+      background: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .acc-header:hover {
+      background: #f8fafc;
+    }
+    .acc-title {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .acc-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .badge-hub { background: #dbeafe; color: #1e40af; }
+    .badge-tutor { background: #fef3c7; color: #92400e; }
+    .badge-subject { background: #dcfce7; color: #166534; }
+    .badge-sync { background: #f3e8ff; color: #6b21a8; }
+    .badge-faq { background: #ffedd5; color: #9a3412; }
+
+    .acc-icon {
+      font-size: 11px;
+      color: #94a3b8;
+      transition: transform 0.2s ease;
+    }
+    .acc-item.open .acc-icon {
+      transform: rotate(180deg);
+      color: #2563eb;
+    }
+    .acc-body {
+      display: none;
+      padding: 10px 12px 12px;
+      border-top: 1px solid #f1f5f9;
+      background: #fafafa;
+      font-size: 12px;
+      color: #334155;
+    }
+    .acc-item.open .acc-body {
+      display: block;
+    }
+
+    /* 內文項目排版 */
+    .acc-body p {
+      margin-bottom: 6px;
+    }
+    .acc-body ul {
+      margin-left: 18px;
+      margin-bottom: 6px;
+    }
+    .acc-body li {
+      margin-bottom: 4px;
+    }
+    .highlight-box {
+      background: #f1f5f9;
+      border-left: 3px solid #3b82f6;
+      padding: 6px 8px;
+      border-radius: 0 4px 4px 0;
+      margin: 6px 0;
+      font-size: 11.5px;
+      color: #1e293b;
+    }
+    .warn-box {
+      background: #fef2f2;
+      border-left: 3px solid #ef4444;
+      padding: 6px 8px;
+      border-radius: 0 4px 4px 0;
+      margin: 6px 0;
+      font-size: 11.5px;
+      color: #991b1b;
+    }
+    .tag-inline {
+      display: inline-block;
+      background: #e2e8f0;
+      color: #334155;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    /* 快捷執行按鈕 */
+    .action-btn {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 5px 10px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .action-btn:hover {
+      background: #1d4ed8;
+    }
+
+    /* 隱藏元素 */
+    .hidden {
+      display: none !important;
+    }
+
+    /* 空搜尋提示 */
+    .no-result {
+      text-align: center;
+      padding: 30px 10px;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部導航 -->
+  <div class="header">
+    <div class="header-title">
+      <span>💡</span> 教師使用指南 & 常見 QA
+    </div>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" class="search-input" placeholder="搜尋功能按鈕、關鍵字 (例如: 跨檔、百分制)...">
+    </div>
+  </div>
+
+  <!-- 分類切換 Tabs -->
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('all')">全部</button>
+    <button class="tab-btn" onclick="switchTab('menus')">頂端選單</button>
+    <button class="tab-btn" onclick="switchTab('faq')">常見問答</button>
+    <button class="tab-btn" onclick="switchTab('specs')">格式手冊</button>
+  </div>
+
+  <!-- 工具列 -->
+  <div class="toolbar">
+    <span id="resultCount">共 22 項功能與解答</span>
+    <div>
+      <span class="tool-link" onclick="toggleAll(true)">全部展開</span>
+      <span style="margin: 0 4px; color: #cbd5e1;">|</span>
+      <span class="tool-link" onclick="toggleAll(false)">全部收合</span>
+    </div>
+  </div>
+
+  <!-- 主內容區 -->
+  <div class="content-area" id="contentArea">
+
+    <!-- ==================== 1. 頂端選單說明 ==================== -->
+    <div class="section-group" data-category="menus">
+      <div class="section-title">🌟 教師主控台選單</div>
+
+      <div class="acc-item" data-keywords="全功能主控台 teacherhub 手寫辨識 校對 導師主控 科任主控 ai">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">🚀 開啟教師全功能主控台</div>
+          <span class="acc-badge badge-hub">主控核心</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>單一全螢幕網頁介面，無縫切換三大工作站：</p>
+          <ul>
+            <li><strong>📸 AI 辨識匯入</strong>：批次上傳手寫成績單照片，由 Gemini Vision AI 自動讀取座號與分數，並支援線上校對即時入帳。</li>
+            <li><strong>📊 導師班級主控版</strong>：全科歷史曲線、及格率與標準差看板、個人 2x2 微觀診斷圖表。</li>
+            <li><strong>🔬 科任班級主控版</strong>：跨班走勢、年段五標常模比較與 4 大預警名單。</li>
+          </ul>
+          <div class="highlight-box">
+            💡 <strong>免密提示</strong>：於試算表內部點選開啟時，系統已完成身分驗證，<strong>無需輸入 PIN 碼</strong>即可直接進入！
+          </div>
+          <button class="action-btn" onclick="runScript('showTeacherHubDialog')">立即開啟主控台</button>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="快速匯入 舊成績單 excel xlsx 新格式分頁">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📥 快速匯入舊成績單</div>
+          <span class="acc-badge badge-hub">資料轉移</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>將過去舊有的 Google 試算表或本機 <code>.xlsx</code> 檔案快速轉換至目前系統中：</p>
+          <ul>
+            <li>自動分析舊表結構（座號欄、姓名欄、成績欄位）。</li>
+            <li>自動建立符合系統新標準規格的專屬分頁（保留 Row 1 類別、Row 2 範圍、Row 3 日期）。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="清理 示範資料 清空 假學生 初始 新學期">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">🧹 清理範本示範資料</div>
+          <span class="acc-badge badge-hub">重設準備</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>當您取得包含示範資料的範本試算表時，可一鍵清理為正式環境：</p>
+          <ul>
+            <li><strong>模式 A (僅清空成績)</strong>：完整保留現有名冊學生姓名與座號，僅清除所有歷次測驗分數。</li>
+            <li><strong>模式 B (全面重設)</strong>：清空所有假學生資料，並預留 40 號空白名冊供您填寫正式學生。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="操作說明 範本分頁 系統手冊 manual">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📖 產生/更新系統操作說明與範本分頁</div>
+          <span class="acc-badge badge-hub">操作手冊</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>在試算表中自動建立名為 <code>系統操作說明與格式範本</code> 的專屬分頁，包含完整彩色架構圖、範本一（導師總表）與範本二（科任分頁）標準欄位排版範例。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-group" data-category="menus">
+      <div class="section-title">🏫 導師成績管理選單</div>
+
+      <div class="acc-item" data-keywords="每日匯入 自動排程 雲端硬碟 excel 寄信">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📥 執行每日匯入 (自動路由分頁)</div>
+          <span class="acc-badge badge-tutor">排程自動化</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>手動觸發排程匯入工作：</p>
+          <ul>
+            <li>自動掃描 <code>System_Settings</code> 中設定的上傳資料夾。</li>
+            <li>若有新的 Excel 成績檔或手寫照片，自動解析並寫入對應分頁。</li>
+            <li>處理完成後將檔案移至備份區，並發送 Gmail 報表給老師。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="區間 歷史成績單 紙本 日期區間 產出">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📊 產生指定區間歷史成績單</div>
+          <span class="acc-badge badge-tutor">報表產出</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>輸入「開始日期」與「結束日期」，系統自動篩選該期間內導師班所有測驗，產出獨立分頁，方便段考前結算或列印公布。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="個人報表 pdf 列印 家長通知 批量">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">🖨️ 匯出區間個人報表 (列印/PDF)</div>
+          <span class="acc-badge badge-tutor">家長通知</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>批次產出每位學生的個人成績診斷單（包含歷次分數、五標對比、加權平均），可一鍵列印紙本發給家長簽名簽章。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="加權 權重 weight 科目加權 比例">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">⚙️ 設定科目/類別加權值</div>
+          <span class="acc-badge badge-tutor">參數設定</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>設定各科目或各評量類別的計算權重（例如段考佔 50%、平時考佔 50%，或各科不同權重），以利系統精確計算加權總平均。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="結算 封存 舊學期 新學期 開學">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📦 結算並匯出舊學期資料 (開新學期)</div>
+          <span class="acc-badge badge-tutor">學期轉換</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>在學期末進行成績總結算，並將該學期成績匯出至歷史歸檔備份，將試算表無痛重置為新學期使用狀態。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="系統設定 system settings api key 班級代碼 導師試算表id">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">🛠️ 建立/檢查 [System_Settings] 基礎設定分頁</div>
+          <span class="acc-badge badge-tutor">系統核心</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>檢查或建立系統的核心設定分頁：</p>
+          <ul>
+            <li><strong>A:B 欄</strong>：設定 <code>TEACHER_PIN</code>、<code>GEMINI_API_KEY</code>、雲端資料夾 ID。</li>
+            <li><strong>D:H 欄</strong>：班級代碼對照表（<code>Class_Code</code> 與 <code>Homeroom_SS_ID</code>），提供跨檔同步使用。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-group" data-category="menus">
+      <div class="section-title">🔬 科任成績管理選單</div>
+
+      <div class="acc-item" data-keywords="科任儀表板 跨班分析 視覺化 常模 五標 預警名單">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📈 開啟科任跨班分析儀表板 (視覺化)</div>
+          <span class="acc-badge badge-subject">數據分析</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>專為科任教師設計的現代分析面板（以五碼命名分頁為基礎，如 <code>國二愛理化</code>）：</p>
+          <ul>
+            <li><strong>巨觀走勢</strong>：年段統一五標常模堆疊分佈圖、跨班均分折線圖。</li>
+            <li><strong>4 大智慧預警名單</strong>：🔴危機生、🟡顯著退步、⚡高度波動、🟢顯著進步。</li>
+            <li><strong>微觀歷程卡</strong>：直角 90 度雙軸能力雷達圖，精確對位年段常模。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="跨班總表 匯出 靜態報表 統計分頁">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📑 產出科任跨班分析總表分頁</div>
+          <span class="acc-badge badge-subject">報表匯出</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>將儀表板中的各班人數、及格率、頂均底標佔比等數據，直接在試算表中產出為名為 <code>科任跨班分析總表</code> 的工作表分頁。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="百分制 換算 滿分 比例 conversion">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">💯 指定欄號換算百分制</div>
+          <span class="acc-badge badge-subject">快捷計算</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>當某次平時小考滿分不是 100 分時（例如滿分 50 分或 120 分），可指定該欄並輸入原始滿分，系統自動按比例換算為 100 分制標準成績。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="平均 區間 人數 級距 statistics">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">🍎 計算平均與區間人數</div>
+          <span class="acc-badge badge-subject">快捷計算</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>在當前專任分頁下方快速計算：平均分數、最高分、最低分，以及 90~100, 80~89, 70~79, 60~69, 0~59 各區間之分佈人數。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="排序 評量類別 小考 段考 欄位整理">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">🔀 按評量類別排序欄位 (當前班級)</div>
+          <span class="acc-badge badge-subject">版面整理</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>依據 Row 1 的評量類別（如小考排在前、段考排在後），由左至右自動重新排列測驗欄位，維持版面乾淨清晰。</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="新增分頁 專任班級 新班級">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">➕ 手動新增專任班級分頁</div>
+          <span class="acc-badge badge-subject">分頁建立</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>輸入班級（如 101）與科目（如 理化），自動建立符合五碼規範之標準空白專任班級分頁（預留座號 1~40 號）。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-group" data-category="menus">
+      <div class="section-title">🔄 同步試算表選單</div>
+
+      <div class="acc-item" data-keywords="跨檔同步 導師試算表 遠端 專屬分頁 分享">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📤 跨檔同步當前科任分頁至導師試算表</div>
+          <span class="acc-badge badge-sync">跨檔同步</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p><strong>【科任教師專用】</strong>：將您自己的專任班級成績完整分享給導師：</p>
+          <ul>
+            <li>系統會自動讀取 <code>System_Settings</code> 中該班導師的試算表 ID。</li>
+            <li>在導師試算表中自動建立或平滑更新專屬分頁（例如：<code>國二愛理化</code>）。</li>
+            <li><strong>高保真同步</strong>：保留完整測驗標題、範圍、日期與全部學生成績！</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="匯入導師總表 同檔 考 去重 比對 a1">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📥 匯入當前科任成績至導師總表 (同試算表內)</div>
+          <span class="acc-badge badge-sync">本檔合併</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p><strong>【同試算表科任轉導師】</strong>：將科任分頁測驗寫入「導師成績總表」：</p>
+          <ul>
+            <li><strong>班級比對</strong>：以分頁前三字比對導師總表 A1 班級，不符時嚴格阻擋。</li>
+            <li><strong>填上科目</strong>：新欄 Row 1 自動填入分頁後兩字科目（如 <code>理化</code>）。</li>
+            <li><strong>篩選考試</strong>：自動匯入包含關鍵字「考」之測驗欄位。</li>
+            <li><strong>智慧去重</strong>：複製前確認導師總表是否已有完全相同的資料（<strong>同科目、同範圍、同時間</strong>），避免重複灌水！</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 2. 常見問題 FAQ ==================== -->
+    <div class="section-group" data-category="faq">
+      <div class="section-title">❓ 常見問答與故障排除</div>
+
+      <div class="acc-item" data-keywords="班級不符 警示 a1 匯入失敗 為什麼">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">Q1: 點擊「匯入導師總表」為何顯示「班級不符」？</div>
+          <span class="acc-badge badge-faq">常見排錯</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>這是系統的<strong>安全防護機制</strong>，防止把 A 班的成績誤寫入 B 班總表：</p>
+          <div class="warn-box">
+            請檢查：當前科任分頁名稱的<strong>前三字班級</strong>（例如 <code>國二愛</code>）是否與「導師成績總表」<strong>A1 儲存格</strong>填寫的班級完全一致。
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="手寫照片 辨識失敗 模糊 無法辨識 圖片 ai">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">Q2: 手寫成績照片辨識失敗或結果不準確？</div>
+          <span class="acc-badge badge-faq">辨識指引</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>拍照時請注意以下細節，辨識成功率可達 95% 以上：</p>
+          <ul>
+            <li><strong>光線均勻</strong>：避免強烈反光或自身影子遮蔽成績數字。</li>
+            <li><strong>垂直正視拍攝</strong>：盡量保持畫面平整，避免過大的傾斜角度。</li>
+            <li><strong>裁切無關背景</strong>：將桌面上無關的筆袋、課本裁切掉，只保留表格區域。</li>
+            <li><strong>即時線上校對</strong>：辨識完成後可在網頁表格直接點擊修改錯誤數值，確認無誤再點「寫入試算表」。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="跨檔同步 權限 錯誤 拒絕存取 permission">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">Q3: 執行跨檔同步時出現「拒絕存取」錯誤？</div>
+          <span class="acc-badge badge-faq">權限設定</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p>因為跨檔同步需要修改導師的試算表：</p>
+          <ol>
+            <li>請請導師將其試算表開啟「共用」，並將您的 Google 帳號加入為<strong>「編輯者」</strong>。</li>
+            <li>請確認 <code>System_Settings</code> 的 <code>Homeroom_SS_ID</code> 欄位貼上的確實是該班導師試算表網址中的 44 碼 ID。</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="分頁命名 格式 國二愛理化 101理化 五碼 規範">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">Q4: 分頁命名規範一定要是「前三字班級、後兩字科目」嗎？</div>
+          <span class="acc-badge badge-faq">格式規則</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p><strong>強烈建議遵守！</strong> 這是系統跨班分析與匯入自動比對的核心依據：</p>
+          <ul>
+            <li>例如：<code>國二愛理化</code>（前三字 <code>國二愛</code> 是班級，後兩字 <code>理化</code> 是科目）</li>
+            <li>例如：<code>101理化</code>（前三字 <code>101</code> 是班級，後兩字 <code>理化</code> 是科目）</li>
+            <li>例如：<code>高一智數學</code>（前三字 <code>高一智</code> 是班級，後兩字 <code>數學</code> 是科目）</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="重複匯入 兩次 會不會灌水 去重">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">Q5: 不小心按了兩次匯入，成績會被重複複製嗎？</div>
+          <span class="acc-badge badge-faq">資料防護</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p><strong>不會！</strong> 系統具備「三合一去重檢驗機制」：</p>
+          <p>每次建立新欄位前，系統會自動核對導師總表現有欄位是否有<strong>同科目、同測驗範圍、同日期</strong>之欄位，若已存在則自動略過，絕對不會重複建立新欄！</p>
+        </div>
+      </div>
+
+      <div class="acc-item" data-keywords="家長 查成績 學生 安全 會不會看到其他人">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">Q6: 家長或學生查成績會看到別人的分數嗎？</div>
+          <span class="acc-badge badge-faq">資訊安全</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <p><strong>完全不會！</strong> 系統採用雙軌完全分離設計：</p>
+          <ul>
+            <li>家長查詢端網址帶有專屬參數 <code>?view=student</code>，完全不提供教師後台按鈕。</li>
+            <li>家長必須輸入學生「座號」與「專屬密碼」才能查驗，僅能讀取個人歷程與去識別化的五標能力階梯。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 3. 標準格式手冊 ==================== -->
+    <div class="section-group" data-category="specs">
+      <div class="section-title">📋 系統標準分頁格式手冊</div>
+
+      <div class="acc-item open" data-keywords="導師成績總表 格式 欄位 規範">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📌 導師成績總表 格式規格</div>
+          <span class="acc-badge badge-tutor">規範</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <ul>
+            <li><strong>A1 儲存格</strong>：必須填寫班級名稱（如 <code>國二愛</code> 或 <code>101</code>）。</li>
+            <li><strong>第 1 列 (Row 1)</strong>：D 欄起為各測驗之<strong>科目名稱</strong>（如 國文、英文、理化）。</li>
+            <li><strong>第 2 列 (Row 2)</strong>：D 欄起為各測驗之<strong>測驗範圍</strong>（如 第一單元基本測量）。</li>
+            <li><strong>第 3 列 (Row 3)</strong>：D 欄起為<strong>測驗日期</strong>（格式：<code>YYYY-MM-DD</code>）。</li>
+            <li><strong>A 欄 (Col 1)</strong>：第 4 列起為學生查詢密碼。</li>
+            <li><strong>B 欄 (Col 2)</strong>：第 4 列起為學生座號（數字 1, 2, 3...）。</li>
+            <li><strong>C 欄 (Col 3)</strong>：第 4 列起為學生姓名。</li>
+            <li><strong>D 欄起 (Col 4+)</strong>：第 4 列起為學生成績分數。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="acc-item open" data-keywords="科任分頁 格式 欄位 規範 國二愛理化">
+        <div class="acc-header" onclick="toggleItem(this)">
+          <div class="acc-title">📌 科任班級分頁 格式規格</div>
+          <span class="acc-badge badge-subject">規範</span>
+          <span class="acc-icon">▼</span>
+        </div>
+        <div class="acc-body">
+          <ul>
+            <li><strong>分頁名稱</strong>：前三字班級、後兩字科目（如 <code>國二愛理化</code>）。</li>
+            <li><strong>A1 儲存格</strong>：班級名稱（如 <code>國二愛</code>）。</li>
+            <li><strong>第 1 列 (Row 1)</strong>：C 欄起為<strong>評量類別</strong>（如 平時小考、第二次段考）。</li>
+            <li><strong>第 2 列 (Row 2)</strong>：C 欄起為<strong>測驗範圍</strong>（如 力與運動）。</li>
+            <li><strong>第 3 列 (Row 3)</strong>：C 欄起為<strong>測驗日期</strong>（格式：<code>YYYY-MM-DD</code>）。</li>
+            <li><strong>A 欄 (Col 1)</strong>：第 4 列起為學生座號（數字 1, 2, 3...）。</li>
+            <li><strong>B 欄 (Col 2)</strong>：第 4 列起為學生姓名。</li>
+            <li><strong>C 欄起 (Col 3+)</strong>：第 4 列起為各次測驗學生成績。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 查無結果提示 -->
+    <div id="noResult" class="no-result hidden">
+      查無相關說明或 QA，請嘗試其他關鍵字！
+    </div>
+
+  </div>
+
+  <script>
+    let currentTab = 'all';
+
+    // 展開/收合單項
+    function toggleItem(headerEl) {
+      const item = headerEl.parentElement;
+      item.classList.toggle('open');
+    }
+
+    // 全部展開 / 全部收合
+    function toggleAll(shouldOpen) {
+      const items = document.querySelectorAll('.acc-item:not(.hidden)');
+      items.forEach(item => {
+        if (shouldOpen) {
+          item.classList.add('open');
+        } else {
+          item.classList.remove('open');
+        }
+      });
+    }
+
+    // 分類 Tab 切換
+    function switchTab(tabKey) {
+      currentTab = tabKey;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      filterContent();
+    }
+
+    // 關鍵字搜尋監聽
+    document.getElementById('searchInput').addEventListener('input', function() {
+      filterContent();
+    });
+
+    // 整合過濾函式 (分類 + 關鍵字)
+    function filterContent() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const groups = document.querySelectorAll('.section-group');
+      let visibleCount = 0;
+
+      groups.forEach(group => {
+        const cat = group.getAttribute('data-category');
+        const matchTab = (currentTab === 'all' || currentTab === cat);
+
+        let groupHasVisibleItem = false;
+        const items = group.querySelectorAll('.acc-item');
+
+        items.forEach(item => {
+          const text = item.innerText.toLowerCase();
+          const keywords = (item.getAttribute('data-keywords') || '').toLowerCase();
+          const matchQuery = !query || text.includes(query) || keywords.includes(query);
+
+          if (matchTab && matchQuery) {
+            item.classList.remove('hidden');
+            groupHasVisibleItem = true;
+            visibleCount++;
+            // 搜尋時若有符合則自動展開以利閱讀
+            if (query) {
+              item.classList.add('open');
+            }
+          } else {
+            item.classList.add('hidden');
+          }
+        });
+
+        if (groupHasVisibleItem) {
+          group.classList.remove('hidden');
+        } else {
+          group.classList.add('hidden');
+        }
+      });
+
+      // 更新統計數字與無結果提示
+      document.getElementById('resultCount').innerText = `符合 ${visibleCount} 項說明`;
+      const noResultEl = document.getElementById('noResult');
+      if (visibleCount === 0) {
+        noResultEl.classList.remove('hidden');
+      } else {
+        noResultEl.classList.add('hidden');
+      }
+    }
+
+    // 呼叫 GAS 後端函式
+    function runScript(funcName) {
+      if (google && google.script && google.script.run) {
+        google.script.run[funcName]();
+      }
+    }
+  </script>
+</body>
+</html>
+

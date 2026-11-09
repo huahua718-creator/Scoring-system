@@ -58,6 +58,7 @@
 ├── Code.gs                   # GAS 後端核心 (REST API、Gemini 視覺辨識、統計常模、路由控制)
 ├── TeacherHub.html           # 教師全功能主控台 (AI辨識校對 / 導師主控 / 科任跨班儀表板)
 ├── SubjectDashboard.html     # 科任教師三維度跨班分析獨立儀表板 (Macro/Micro/Alert)
+├── SidebarQA.html            # 教師隨身使用指南與 QA 諮詢側邊欄 (按鈕解說/即時搜尋/排錯)
 ├── Index.html                # 學生/家長 Web App 成績查詢端 (Chart.js 趨勢圖/階梯五標圖/雷達圖)
 ├── BatchReport.html          # 學生個人成績通知單 (支援批次預覽、自訂樣式、列印與匯出 PDF)
 ├── DateRangeDialog.html      # 導師班指定日期區間歷史成績單結算對話框
@@ -189,6 +190,7 @@
      * `Code.gs`
      * `TeacherHub.html`
      * `SubjectDashboard.html`
+     * `SidebarQA.html`
      * `Index.html`
      * `BatchReport.html`
      * `DateRangeDialog.html`
