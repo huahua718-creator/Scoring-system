@@ -2691,8 +2691,9 @@ function getSubjectTeacherWeights() {
 /**
  * 遍歷所有分頁：計算各分頁底部的「平均分數」與「分數區間人數」
  * 【智慧增量優化】：僅針對「尚未計算 / 沒有資料」的成績欄位進行補算，已存在的欄位不重複運算
+ * @param {boolean} [silent=false] 若為 true 則不跳出 ui.alert 視窗 (供背景/網頁端呼叫)
  */
-function generateCurrentSubjectStats() {
+function generateCurrentSubjectStats(silent = false) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets();
   let processedTabCount = 0;
@@ -2701,7 +2702,7 @@ function generateCurrentSubjectStats() {
   for (const sheet of sheets) {
     const sheetName = sheet.getName();
     // 排除特殊系統與報表分頁
-    if (sheetName === "System_Settings" || sheetName === "科任跨班分析總表" || sheetName.endsWith("_總成績") || sheetName === "導師班成績統計表") {
+    if (sheetName === "System_Settings" || sheetName === "科任跨班分析總表" || sheetName === "系統操作說明與格式範本" || sheetName.endsWith("_總成績") || sheetName.endsWith("_總成績報表") || sheetName === "導師班成績統計表") {
       continue;
     }
 
@@ -2816,10 +2817,14 @@ function generateCurrentSubjectStats() {
     msg = `✅ 檢查完畢：所有分頁的成績欄位統計皆已存在，無須重複重算。`;
   }
 
-  try {
-    SpreadsheetApp.getUi().alert(msg);
-  } catch (e) {
-    Logger.log(msg); // 排程自動執行時無 UI 介面，改上記錄檔
+  if (!silent) {
+    try {
+      SpreadsheetApp.getUi().alert(msg);
+    } catch (e) {
+      Logger.log(msg); // 排程自動執行時無 UI 介面，改上記錄檔
+    }
+  } else {
+    Logger.log(msg);
   }
 }
 /**
@@ -4395,7 +4400,8 @@ function getAvailableClassesAndSubjects() {
     // 檢查是否為專任五碼格式 (如 101理化 或 國二愛理化)
     const info = parseSubjectSheetInfo(sName);
     if (info) {
-      classesSet.add(info.classCode);
+      const fullClassCode = (info.className === info.grade) ? info.grade : `${info.grade}${info.className}`;
+      classesSet.add(fullClassCode);
       subjectsSet.add(info.subject);
     }
   });
@@ -4420,10 +4426,84 @@ function getAvailableClassesAndSubjects() {
     mainClassName: mainClassName,
     classes: Array.from(classesSet).filter(Boolean),
     subjects: Array.from(subjectsSet).filter(Boolean),
-    evalTypes: ["小考", "平時測驗", "作業", "段考", "期中考", "期末考", "筆記", "課堂表現", "週考"],
+    evalTypes: ["小考", "平時小考", "隨堂測驗", "週考", "段考", "期中考", "期末考", "作業", "筆記", "課堂表現"],
     tutorStudents: tutorStudents,
+    manualSheets: getManualEntrySheetsList(),
     earliestDate: getEarliestDateInMainSheet()
   };
+}
+
+/**
+ * 取得可進行手機/手動快速輸入成績的班級分頁與其學生名冊清單
+ * @returns {Array<Object>}
+ */
+function getManualEntrySheetsList() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  const excludedNames = new Set(["System_Settings", "科任跨班分析總表", "系統操作說明與格式範本", "導師班成績統計表"]);
+  const result = [];
+
+  sheets.forEach(sh => {
+    const sName = sh.getName().trim();
+    if (
+      excludedNames.has(sName) ||
+      sName.endsWith("_總成績") ||
+      sName.endsWith("_總成績報表") ||
+      sName.endsWith("_區間成績單")
+    ) {
+      return;
+    }
+
+    const isMainSheet = (sName === "導師成績總表");
+    const seatColIdx = isMainSheet ? 2 : 1;
+    const nameColIdx = isMainSheet ? 3 : 2;
+    const studentEndRow = getStudentEndRow(sh, seatColIdx, nameColIdx);
+    const totalCount = studentEndRow - 3;
+
+    // 過濾非成績分頁（如空白工作表1）
+    if (totalCount <= 0 && !isMainSheet) {
+      return;
+    }
+
+    const students = [];
+    if (totalCount > 0) {
+      const rows = sh.getRange(4, seatColIdx, totalCount, 2).getValues();
+      rows.forEach(r => {
+        const seat = parseInt(r[0], 10);
+        const name = String(r[1] || "").trim();
+        if (!isNaN(seat) && seat > 0) {
+          students.push({ seat: seat, name: name || `座號${seat}` });
+        }
+      });
+      students.sort((a, b) => a.seat - b.seat);
+    }
+
+    let className = "";
+    let subject = "";
+    if (isMainSheet) {
+      className = normalizeClassName(String(sh.getRange("A1").getValue() || "").trim()) || "本班";
+    } else if (sName.length >= 5) {
+      className = sName.substring(0, 3);
+      subject = sName.slice(-2);
+    } else if (sName.length >= 3) {
+      className = sName.substring(0, 3);
+      subject = sName.substring(3);
+    } else {
+      className = sName;
+    }
+
+    result.push({
+      sheetName: sName,
+      displayName: isMainSheet ? `導師成績總表 (${className})` : sName,
+      isMainSheet: isMainSheet,
+      className: className,
+      subject: subject,
+      students: students
+    });
+  });
+
+  // 將科任班級分頁排在前面或依工作表順序呈現，方便老師選擇
+  return result;
 }
 
 /**
@@ -4794,9 +4874,9 @@ function saveConfirmedOcrScores(confirmedList) {
     }
   }
 
-  // 嘗試執行統計計算更新
+  // 嘗試執行統計計算更新 (背景靜默執行)
   try {
-    generateCurrentSubjectStats();
+    generateCurrentSubjectStats(true);
   } catch (statErr) {
     // 忽略
   }
@@ -4806,6 +4886,153 @@ function saveConfirmedOcrScores(confirmedList) {
     totalProcessed: confirmedList.length,
     successCount: successCount,
     logs: logs
+  };
+}
+
+/**
+ * 計算與 generateCurrentSubjectStats 完全一致的簡要統計指標
+ * @param {Array<number>} scoreNumbers 有效分數陣列
+ * @returns {Object}
+ */
+function computeBriefScoreStats(scoreNumbers) {
+  const valid = (scoreNumbers || []).map(Number).filter(n => !isNaN(n));
+  const count = valid.length;
+  if (count === 0) {
+    return {
+      count: 0, avg: 0, max: "-", min: "-",
+      c100: 0, c90_100: 0, c80_90: 0, c70_80: 0, c60_70: 0, cFail: 0, passRate: 0
+    };
+  }
+
+  let sum = 0, max = valid[0], min = valid[0];
+  let c100 = 0, c90_100 = 0, c80_90 = 0, c70_80 = 0, c60_70 = 0, cFail = 0;
+
+  for (let i = 0; i < count; i++) {
+    const sc = valid[i];
+    sum += sc;
+    if (sc > max) max = sc;
+    if (sc < min) min = sc;
+
+    if (sc === 100) c100++;
+    else if (sc >= 90 && sc < 100) c90_100++;
+    else if (sc >= 80 && sc < 90) c80_90++;
+    else if (sc >= 70 && sc < 80) c70_80++;
+    else if (sc >= 60 && sc < 70) c60_70++;
+    else if (sc >= 0 && sc < 60) cFail++;
+  }
+
+  const avg = Math.round((sum / count) * 10) / 10;
+  const passCount = count - cFail;
+  const passRate = Math.round((passCount / count) * 1000) / 10;
+
+  return {
+    count: count,
+    avg: avg,
+    max: max,
+    min: min,
+    c100: c100,
+    c90_100: c90_100,
+    c80_90: c80_90,
+    c70_80: c70_80,
+    c60_70: c60_70,
+    cFail: cFail,
+    passRate: passRate
+  };
+}
+
+/**
+ * 網頁端呼叫：儲存教師手機/手動打字輸入的成績，寫入指定班級分頁最新欄位，
+ * 並執行 generateCurrentSubjectStats 更新該分頁底部統計。
+ * @param {Object} payload { sheetName, subject, evalType, examRange, examDate, scores: [{seat, score}] }
+ * @returns {Object}
+ */
+function saveManualTypedScores(payload) {
+  if (!payload || !payload.sheetName) {
+    throw new Error("未指定要寫入的班級分頁！");
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const targetSheet = ss.getSheetByName(String(payload.sheetName).trim());
+  if (!targetSheet) {
+    throw new Error(`找不到分頁 [${payload.sheetName}]！`);
+  }
+
+  const sheetName = targetSheet.getName();
+  const isMainSheet = (sheetName === "導師成績總表");
+  const evalType = String(payload.evalType || "小考").trim() || "小考";
+  const subject = String(payload.subject || "").trim();
+  const examRange = String(payload.examRange || "").trim() || "無範圍";
+  const examDate = String(payload.examDate || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd")).trim();
+  const scoresArr = Array.isArray(payload.scores) ? payload.scores : [];
+
+  if (isMainSheet && !subject) {
+    throw new Error("寫入導師成績總表時，請填寫或選擇科目名稱！");
+  }
+
+  const scoreMap = new Map();
+  const validNumbers = [];
+  scoresArr.forEach(item => {
+    const seat = parseInt(item.seat, 10);
+    const raw = String(item.score !== undefined && item.score !== null ? item.score : "").trim();
+    if (!isNaN(seat) && raw !== "" && !isNaN(Number(raw))) {
+      const val = parseInt(Number(raw), 10);
+      scoreMap.set(seat, val);
+      validNumbers.push(val);
+    }
+  });
+
+  if (scoreMap.size === 0) {
+    throw new Error("請至少輸入一位學生的有效成績再送出！");
+  }
+
+  // 決定最新欄位位置
+  const lastCol = targetSheet.getLastColumn();
+  const startCol = isMainSheet ? (lastCol < 3 ? 4 : lastCol + 1) : (lastCol < 2 ? 3 : lastCol + 1);
+  const row1Val = isMainSheet ? subject : evalType;
+
+  // 核心防呆：先設定純文字格式 (@) 再寫入字串，確保範圍 (如 "3-1") 與日期絕對不轉型成時間物件
+  targetSheet.getRange(1, startCol).setNumberFormat("@").setValue(String(row1Val));
+  targetSheet.getRange(2, startCol).setNumberFormat("@").setValue(String(examRange));
+  targetSheet.getRange(3, startCol).setNumberFormat("@").setValue(String(examDate));
+
+  targetSheet.getRange(1, startCol).setFontWeight("bold").setHorizontalAlignment("center");
+  targetSheet.getRange(2, startCol).setHorizontalAlignment("center");
+  targetSheet.getRange(3, startCol).setHorizontalAlignment("center");
+
+  // 依座號寫入學生分數
+  const seatColIdx = isMainSheet ? 2 : 1;
+  const labelColIdx = isMainSheet ? 3 : 2;
+  const studentEndRow = getStudentEndRow(targetSheet, seatColIdx, labelColIdx);
+  const totalStudents = studentEndRow - 3;
+
+  let writtenCount = 0;
+  if (totalStudents > 0) {
+    const seatList = targetSheet.getRange(4, seatColIdx, totalStudents, 1).getValues();
+    const outputScores = seatList.map(r => {
+      const seatNum = parseInt(r[0], 10);
+      if (scoreMap.has(seatNum)) {
+        writtenCount++;
+        return [scoreMap.get(seatNum)];
+      }
+      return [""];
+    });
+    targetSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores).setHorizontalAlignment("center");
+  }
+
+  // 觸發 generateCurrentSubjectStats 更新試算表底部統計公式 (靜默模式不跳 ui.alert)
+  try {
+    generateCurrentSubjectStats(true);
+  } catch (statErr) {
+    Logger.log("generateCurrentSubjectStats 執行異常: " + statErr.message);
+  }
+
+  return {
+    success: true,
+    sheetName: sheetName,
+    addedColumn: startCol,
+    colLetter: getColLetter(startCol),
+    writtenCount: writtenCount,
+    stats: computeBriefScoreStats(validNumbers)
   };
 }
 

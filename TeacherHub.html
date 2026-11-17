@@ -1503,6 +1503,250 @@
       }
     }
 
+    /* ==============================================================
+       手機打字快速輸入模式樣式
+    ============================================================== */
+    .manual-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .manual-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .manual-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .manual-field input,
+    .manual-field select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 15px;
+      font-weight: 600;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--gray-800);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .manual-field input:focus,
+    .manual-field select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    .manual-hint {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .manual-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .manual-tip-banner {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      line-height: 1.45;
+    }
+    .manual-student-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 74px;
+    }
+    .manual-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      transition: all 0.15s ease;
+    }
+    .manual-row.focused-row {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+    }
+    .manual-row.filled-row {
+      border-left: 4px solid #10b981;
+    }
+    .manual-student-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .manual-seat-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 30px;
+      padding: 0 6px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .manual-row.focused-row .manual-seat-badge {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .manual-student-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .manual-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .manual-score-input {
+      width: 74px;
+      height: 44px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      background: #f8fafc;
+      transition: all 0.15s;
+      -moz-appearance: textfield;
+    }
+    .manual-score-input:focus {
+      outline: none;
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
+    .btn-100 {
+      height: 44px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25);
+      transition: transform 0.1s, opacity 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-100:active {
+      transform: scale(0.94);
+    }
+
+    /* 手機底部固定確認列 */
+    .manual-sticky-bar {
+      position: sticky;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid #cbd5e1;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      z-index: 40;
+      border-radius: 10px;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+      margin-top: 10px;
+    }
+    .manual-progress-pill {
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      background: #f1f5f9;
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    /* 統計確認視窗表格 */
+    .stats-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .stats-mini-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 4px;
+      text-align: center;
+    }
+    .stats-mini-label {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 2px;
+    }
+    .stats-mini-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #1e293b;
+    }
+    .stats-dist-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 10px 0 14px 0;
+    }
+    .stats-dist-table th,
+    .stats-dist-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: center;
+    }
+    .stats-dist-table th {
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+      .manual-meta-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .manual-meta-grid .manual-field-full {
+        grid-column: 1 / -1;
+      }
+      .stats-preview-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
     </style>
 </head>
 <body>
@@ -1591,57 +1835,151 @@
 
   <main>
     <!-- ==============================================================
-         TAB 1: 匯入成績單功能 (AI 影像辨識與校對匯入)
+         TAB 1: 匯入成績單功能 (AI 影像辨識 & 手機打字快速輸入)
     ============================================================== -->
     <div id="tab-import" class="tab-content active">
-      <!-- 步驟 1: 上傳照片區塊 -->
-      <div class="card">
-        <div class="card-title">
-          <span>📤 手寫成績單照片上傳 (支援多張批量處理)</span>
-        </div>
+      <!-- 模式切換列 -->
+      <div class="tabs" style="margin-bottom: 14px;">
+        <button class="sub-tab-btn active" id="importModeBtn-ocr" onclick="switchImportMode('ocr')">
+          <span>📸</span> <span class="subtab-text-full">照片 AI 辨識匯入</span><span class="subtab-text-short">照片辨識</span>
+        </button>
+        <button class="sub-tab-btn" id="importModeBtn-manual" onclick="switchImportMode('manual')">
+          <span>⌨️</span> <span class="subtab-text-full">手機打字快速輸入</span><span class="subtab-text-short">手機打字輸入</span>
+        </button>
+      </div>
 
-        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-          <div class="upload-icon">📷</div>
-          <div style="font-size: 16px; font-weight: bold; color: var(--gray-700);">
-            點擊此處或將手寫成績單照片拖曳到此（支援複數照片上傳）
+      <!-- 模式 A: AI 照片辨識匯入 -->
+      <div id="importPanel-ocr">
+        <!-- 步驟 1: 上傳照片區塊 -->
+        <div class="card">
+          <div class="card-title">
+            <span>📤 手寫成績單照片上傳 (支援多張批量處理)</span>
           </div>
-          <div class="upload-hint">支援格式：JPG, PNG, HEIC, JPEG ｜ 可同時選取多個檔案，或手機拍照後批次上傳</div>
-          <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
-        </div>
 
-        <!-- 照片預覽清單 -->
-        <div id="fileListContainer" style="display:none; margin-top:20px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <span style="font-weight:bold; font-size:14px; color:var(--gray-700);">
-              📂 已選取照片清單 (<span id="selectedCount">0</span> 張)：
-            </span>
-            <div style="display:flex; gap:8px;">
-              <button class="btn btn-primary" onclick="startOcrRecognition()">🚀 開始 AI 辨識</button>
-              <button class="btn btn-secondary" onclick="clearSelectedFiles()">🧹 清空重選</button>
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📷</div>
+            <div style="font-size: 16px; font-weight: bold; color: var(--gray-700);">
+              點擊此處或將手寫成績單照片拖曳到此（支援複數照片上傳）
             </div>
+            <div class="upload-hint">支援格式：JPG, PNG, HEIC, JPEG ｜ 可同時選取多個檔案，或手機拍照後批次上傳</div>
+            <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
           </div>
-          <div class="file-grid" id="fileGrid"></div>
+
+          <!-- 照片預覽清單 -->
+          <div id="fileListContainer" style="display:none; margin-top:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <span style="font-weight:bold; font-size:14px; color:var(--gray-700);">
+                📂 已選取照片清單 (<span id="selectedCount">0</span> 張)：
+              </span>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary" onclick="startOcrRecognition()">🚀 開始 AI 辨識</button>
+                <button class="btn btn-secondary" onclick="clearSelectedFiles()">🧹 清空重選</button>
+              </div>
+            </div>
+            <div class="file-grid" id="fileGrid"></div>
+          </div>
+        </div>
+
+        <!-- 步驟 2: 線上校對與確認匯入區塊 -->
+        <div id="reviewSection" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="margin:0; font-size:18px; color:var(--gray-800); display:flex; align-items:center; gap:8px;">
+              <span>✏️ 辨識成果校對與資料庫匯入</span>
+              <span style="font-size:13px; font-weight:normal; color:var(--gray-600);">(請檢查班級、科目、範圍與座號分數，確認後存檔)</span>
+            </h2>
+            <button class="btn btn-success" style="padding:10px 20px; font-size:15px;" onclick="saveAllConfirmedScores()">
+              💾 全部確認無誤，匯入試算表
+            </button>
+          </div>
+
+          <div id="reviewCardsContainer"></div>
+
+          <div style="text-align:center; margin-top:24px;">
+            <button class="btn btn-success" style="padding:12px 28px; font-size:16px;" onclick="saveAllConfirmedScores()">
+              💾 確認存檔並匯入試算表 (導師班與科任班)
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- 步驟 2: 線上校對與確認匯入區塊 -->
-      <div id="reviewSection" style="display:none;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <h2 style="margin:0; font-size:18px; color:var(--gray-800); display:flex; align-items:center; gap:8px;">
-            <span>✏️ 辨識成果校對與資料庫匯入</span>
-            <span style="font-size:13px; font-weight:normal; color:var(--gray-600);">(請檢查班級、科目、範圍與座號分數，確認後存檔)</span>
-          </h2>
-          <button class="btn btn-success" style="padding:10px 20px; font-size:15px;" onclick="saveAllConfirmedScores()">
-            💾 全部確認無誤，匯入試算表
-          </button>
+      <!-- 模式 B: 手機打字快速輸入 -->
+      <div id="importPanel-manual" style="display:none;">
+        <!-- 測驗基本資訊卡 -->
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-title" style="margin-bottom:12px;">
+            <span>📝 測驗資訊設定</span>
+          </div>
+
+          <div class="manual-meta-grid">
+            <div class="manual-field manual-field-full">
+              <label for="manualSheetSelect">🏫 目標班級分頁：</label>
+              <select id="manualSheetSelect" onchange="onManualSheetChange()">
+                <option value="">載入分頁中...</option>
+              </select>
+            </div>
+
+            <div class="manual-field" id="manualSubjectField" style="display:none;">
+              <label for="manualSubjectInput">📚 科目名稱 (導師總表用)：</label>
+              <input type="text" id="manualSubjectInput" list="manualSubjectDatalist" placeholder="例：國文、理化">
+              <datalist id="manualSubjectDatalist"></datalist>
+            </div>
+
+            <div class="manual-field">
+              <label for="manualEvalTypeSelect">📌 成績類型：</label>
+              <select id="manualEvalTypeSelect">
+                <option value="小考" selected>小考</option>
+                <option value="平時小考">平時小考</option>
+                <option value="隨堂測驗">隨堂測驗</option>
+                <option value="週考">週考</option>
+                <option value="段考">段考</option>
+                <option value="期中考">期中考</option>
+                <option value="期末考">期末考</option>
+                <option value="作業">作業</option>
+                <option value="筆記">筆記</option>
+                <option value="課堂表現">課堂表現</option>
+              </select>
+            </div>
+
+            <div class="manual-field">
+              <label for="manualDateInput">📅 測驗日期：</label>
+              <input type="date" id="manualDateInput">
+            </div>
+
+            <div class="manual-field manual-field-full">
+              <label for="manualRangeInput">📖 測驗範圍 (純文字儲存)：</label>
+              <input type="text" id="manualRangeInput" placeholder="例：3-1、第一章、L1~L2">
+              <span class="manual-hint">※ 存入試算表時將強制以純文字儲存，輸入如「3-1」不會變成日期。</span>
+            </div>
+          </div>
         </div>
 
-        <div id="reviewCardsContainer"></div>
+        <!-- 學生分數輸入清單 -->
+        <div class="card" style="margin-bottom:12px;">
+          <div class="manual-list-header">
+            <div class="card-title" style="margin:0; border:none; padding:0;">
+              <span>⌨️ 學生分數快速輸入</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button type="button" class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="refreshManualSheets()">🔄 重整名冊</button>
+              <button type="button" class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="clearManualScores()">🧹 清空重填</button>
+            </div>
+          </div>
 
-        <div style="text-align:center; margin-top:24px;">
-          <button class="btn btn-success" style="padding:12px 28px; font-size:16px;" onclick="saveAllConfirmedScores()">
-            💾 確認存檔並匯入試算表 (導師班與科任班)
-          </button>
+          <div class="manual-tip-banner">
+            💡 <strong>快速輸入說明</strong>：點擊分數欄將自動開啟數字鍵盤，每輸入 <strong>2 個數字</strong>自動跳下一位學生；滿分 100 可直接點旁側 <strong>[100]</strong> 按鈕並自動跳下一位；缺考或未考可直接留白按鍵盤「下一位」。
+          </div>
+
+          <div id="manualStudentList" class="manual-student-list">
+            <div style="text-align:center; padding:24px; color:#64748b;">請先選擇上方的班級分頁...</div>
+          </div>
+
+          <!-- 底部固定操作列 -->
+          <div class="manual-sticky-bar">
+            <div class="manual-progress-pill" id="manualProgressBadge">已輸入 0 / 0 人</div>
+            <button type="button" id="btnManualConfirm" class="btn btn-primary" style="padding:10px 18px; font-size:15px;" onclick="openManualStatsConfirm()">
+              ✅ 確認與查看統計
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -2098,6 +2436,60 @@
     </div>
   </div>
 
+  <!-- 手機輸入成績統計預覽與最終送出確認 Modal -->
+  <div id="manualStatsModal" class="lightbox-modal" onclick="closeManualStatsModal(event)">
+    <div class="lightbox-img-box" style="background:white; width:100%; max-width:460px; max-height:92vh; overflow-y:auto; border-radius:14px; padding:20px 22px; color:#1e293b;" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+        <h3 style="margin:0; font-size:17px; color:#0f172a; display:flex; align-items:center; gap:6px;">
+          <span>📊</span> 成績簡要統計與送出確認
+        </h3>
+        <button type="button" class="btn btn-secondary" style="padding:2px 8px; font-size:14px;" onclick="closeManualStatsModal()">✕</button>
+      </div>
+
+      <div id="manualConfirmMetaSummary" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; font-size:13px; color:#334155; line-height:1.6;"></div>
+
+      <div class="stats-preview-grid">
+        <div class="stats-mini-card">
+          <div class="stats-mini-label">平均分數</div>
+          <div class="stats-mini-val" id="statPreviewAvg" style="color:#2563eb;">-</div>
+        </div>
+        <div class="stats-mini-card">
+          <div class="stats-mini-label">最高分</div>
+          <div class="stats-mini-val" id="statPreviewMax" style="color:#16a34a;">-</div>
+        </div>
+        <div class="stats-mini-card">
+          <div class="stats-mini-label">最低分</div>
+          <div class="stats-mini-val" id="statPreviewMin" style="color:#dc2626;">-</div>
+        </div>
+        <div class="stats-mini-card">
+          <div class="stats-mini-label">及格率</div>
+          <div class="stats-mini-val" id="statPreviewPassRate" style="color:#0ea5e9;">-</div>
+        </div>
+      </div>
+
+      <table class="stats-dist-table">
+        <thead>
+          <tr>
+            <th>分數區間 (統計對照)</th>
+            <th>人數</th>
+          </tr>
+        </thead>
+        <tbody id="statPreviewDistBody"></tbody>
+      </table>
+
+      <div id="statPreviewMissingNote" style="display:none; background:#fffbeb; border:1px solid #fde68a; color:#92400e; font-size:12px; padding:8px 10px; border-radius:6px; margin-bottom:12px;"></div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+        <button type="button" class="btn btn-secondary" style="flex:1; justify-content:center; padding:11px;" onclick="closeManualStatsModal()">
+          ✏️ 返回修改
+        </button>
+        <button type="button" class="btn btn-success" style="flex:1.4; justify-content:center; padding:11px; font-size:15px;" onclick="submitManualTypedScores()">
+          🚀 確認送出寫入
+        </button>
+      </div>
+    </div>
+  </div>
+
     </div><!-- #appContainer -->
 
   <script>
@@ -2109,8 +2501,13 @@
       classes: [],
       subjects: [],
       evalTypes: [],
-      tutorStudents: []
+      tutorStudents: [],
+      manualSheets: []
     };
+
+    // 手機快速打字輸入暫存狀態
+    let manualCurrentStudents = [];
+    let pendingManualPayload = null;
 
     // Tab 1 狀態
     const uploadedImages = []; // [{ file, name, mimeType, base64, status, recognizedData }]
@@ -2247,13 +2644,24 @@
       }, 200);
     }
 
+    function getLocalTodayStr() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
     function initTeacherHubData() {
       // 綁定拖曳事件
       initUploadZoneEvents();
 
-      // 設定預設日期 (抓取最早的成績到今日，與 DateRangeDialog 邏輯相同)
-      const now = new Date();
-      const todayStr = now.toISOString().split('T')[0];
+      // 設定預設日期 (本地今日日期，避免跨時區誤差)
+      const todayStr = getLocalTodayStr();
+      const manualDateEl = document.getElementById('manualDateInput');
+      if (manualDateEl && !manualDateEl.value) {
+        manualDateEl.value = todayStr;
+      }
 
       // 載入系統基本元資料
       showLoading("正在載入系統設定與班級清單...");
@@ -2269,6 +2677,9 @@
             const earliest = meta.earliestDate || todayStr;
             document.getElementById('tutorStartDate').value = earliest;
             document.getElementById('tutorEndDate').value = todayStr;
+
+            // 初始化手機快速輸入介面下拉與名冊
+            initManualEntryMeta(meta);
           }
         })
         .withFailureHandler(err => {
@@ -2276,6 +2687,483 @@
           console.error("載入系統元資料失敗:", err);
         })
         .getAvailableClassesAndSubjects();
+    }
+
+    /* ==============================================================
+       Tab 1 模式切換與手機打字快速輸入模組
+    ============================================================== */
+    function switchImportMode(mode) {
+      document.getElementById('importModeBtn-ocr').classList.toggle('active', mode === 'ocr');
+      document.getElementById('importModeBtn-manual').classList.toggle('active', mode === 'manual');
+      document.getElementById('importPanel-ocr').style.display = (mode === 'ocr') ? 'block' : 'none';
+      document.getElementById('importPanel-manual').style.display = (mode === 'manual') ? 'block' : 'none';
+
+      if (mode === 'manual') {
+        const manualDateEl = document.getElementById('manualDateInput');
+        if (manualDateEl && !manualDateEl.value) {
+          manualDateEl.value = getLocalTodayStr();
+        }
+        if ((!systemMeta.manualSheets || systemMeta.manualSheets.length === 0) &&
+            typeof google !== 'undefined' && google.script && google.script.run) {
+          refreshManualSheets();
+        }
+      }
+    }
+
+    function initManualEntryMeta(meta) {
+      // 1. 成績類型選單 (預設小考)
+      const evalSel = document.getElementById('manualEvalTypeSelect');
+      if (evalSel && Array.isArray(meta.evalTypes) && meta.evalTypes.length > 0) {
+        const currentVal = evalSel.value || "小考";
+        const types = [...meta.evalTypes];
+        if (!types.includes("小考")) types.unshift("小考");
+        evalSel.innerHTML = types.map(t => `<option value="${t}">${t}</option>`).join("");
+        evalSel.value = types.includes(currentVal) ? currentVal : "小考";
+      }
+
+      // 2. 科目建議清單 (供導師成績總表用)
+      const subjList = document.getElementById('manualSubjectDatalist');
+      if (subjList && Array.isArray(meta.subjects)) {
+        subjList.innerHTML = meta.subjects.map(s => `<option value="${s}">`).join("");
+      }
+
+      // 3. 目標班級分頁下拉選單
+      const sheetSel = document.getElementById('manualSheetSelect');
+      if (!sheetSel) return;
+
+      let sheets = Array.isArray(meta.manualSheets) ? [...meta.manualSheets] : [];
+      if (sheets.length === 0 && Array.isArray(meta.tutorStudents) && meta.tutorStudents.length > 0) {
+        sheets.push({
+          sheetName: "導師成績總表",
+          displayName: `導師成績總表 (${meta.mainClassName || "本班"})`,
+          isMainSheet: true,
+          className: meta.mainClassName || "",
+          subject: "",
+          students: meta.tutorStudents
+        });
+      }
+
+      systemMeta.manualSheets = sheets;
+
+      if (sheets.length === 0) {
+        sheetSel.innerHTML = `<option value="">尚未找到班級分頁</option>`;
+        document.getElementById('manualStudentList').innerHTML = `<div style="text-align:center; padding:24px; color:#ef4444;">尚未偵測到班級成績分頁與學生名單</div>`;
+        return;
+      }
+
+      sheetSel.innerHTML = sheets.map(sh => `<option value="${sh.sheetName}">${sh.displayName}</option>`).join("");
+
+      // 若有科任分頁，可優先保持或選擇第一個可輸入分頁
+      onManualSheetChange();
+    }
+
+    function refreshManualSheets() {
+      showLoading("🔄 正在重新讀取班級分頁與學生名冊...");
+      google.script.run
+        .withSuccessHandler(sheets => {
+          hideLoading();
+          systemMeta.manualSheets = sheets || [];
+          initManualEntryMeta(systemMeta);
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("重新讀取分頁失敗：" + err.message);
+        })
+        .getManualEntrySheetsList();
+    }
+
+    function onManualSheetChange() {
+      const sheetName = document.getElementById('manualSheetSelect').value;
+      const sheetObj = (systemMeta.manualSheets || []).find(s => s.sheetName === sheetName);
+      const subjField = document.getElementById('manualSubjectField');
+      const subjInput = document.getElementById('manualSubjectInput');
+
+      if (!sheetObj) {
+        manualCurrentStudents = [];
+        renderManualStudentList([]);
+        return;
+      }
+
+      if (sheetObj.isMainSheet) {
+        subjField.style.display = 'flex';
+        if (!subjInput.value && systemMeta.subjects && systemMeta.subjects.length > 0) {
+          subjInput.value = systemMeta.subjects[0];
+        }
+      } else {
+        subjField.style.display = 'none';
+        subjInput.value = sheetObj.subject || "";
+      }
+
+      manualCurrentStudents = sheetObj.students || [];
+      renderManualStudentList(manualCurrentStudents);
+    }
+
+    function renderManualStudentList(students) {
+      const container = document.getElementById('manualStudentList');
+      if (!students || students.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:24px; color:#64748b;">此分頁尚未建立學生座號名冊 (第 4 列起)</div>`;
+        updateManualProgress();
+        return;
+      }
+
+      let html = "";
+      students.forEach((st, idx) => {
+        html += `
+          <div class="manual-row" id="manualRow-${idx}" data-seat="${st.seat}">
+            <div class="manual-student-info">
+              <span class="manual-seat-badge">${st.seat}</span>
+              <span class="manual-student-name">${st.name || ("座號" + st.seat)}</span>
+            </div>
+            <div class="manual-input-group">
+              <input type="text"
+                     inputmode="numeric"
+                     pattern="[0-9]*"
+                     enterkeyhint="next"
+                     autocomplete="off"
+                     class="manual-score-input"
+                     id="manualScore-${idx}"
+                     data-idx="${idx}"
+                     data-seat="${st.seat}"
+                     data-prev=""
+                     placeholder="--"
+                     onfocus="handleManualScoreFocus(this, ${idx})"
+                     onblur="handleManualScoreBlur(this, ${idx})"
+                     oninput="handleManualScoreInput(this, ${idx})"
+                     onkeydown="handleManualScoreKeydown(event, ${idx})">
+              <button type="button"
+                      class="btn-100"
+                      onmousedown="event.preventDefault()"
+                      onclick="setManualScore100(${idx})">100</button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+      updateManualProgress();
+    }
+
+    function handleManualScoreFocus(el, idx) {
+      const row = document.getElementById(`manualRow-${idx}`);
+      if (row) row.classList.add('focused-row');
+      el.dataset.prev = el.value;
+      try {
+        el.setSelectionRange(0, el.value.length);
+      } catch (e) {}
+    }
+
+    function handleManualScoreBlur(el, idx) {
+      const row = document.getElementById(`manualRow-${idx}`);
+      if (row) row.classList.remove('focused-row');
+
+      const raw = el.value.replace(/\D/g, '');
+      if (raw !== "") {
+        let num = parseInt(raw, 10);
+        if (num > 100) num = 100;
+        el.value = String(num);
+        el.dataset.prev = el.value;
+      } else {
+        el.value = "";
+        el.dataset.prev = "";
+      }
+      updateManualRowFilledState(el, idx);
+      updateManualProgress();
+    }
+
+    function handleManualScoreInput(el, idx) {
+      const digits = el.value.replace(/\D/g, '');
+      const prev = el.dataset.prev || "";
+
+      // 若是刪除或倒退鍵 (長度變短或持平)，只更新數字不自動跳下一位
+      if (digits.length <= prev.length) {
+        el.value = digits;
+        el.dataset.prev = digits;
+        updateManualRowFilledState(el, idx);
+        updateManualProgress();
+        return;
+      }
+
+      // 若原本已經是完整兩位數或 100，使用者點擊後直接繼續補按數字覆寫時，擷取游標處新輸入的數字重新開始兩位數輸入
+      if (prev.length >= 2) {
+        const caret = (typeof el.selectionStart === "number") ? el.selectionStart : digits.length;
+        const newChar = digits.charAt(Math.max(0, caret - 1)) || digits.slice(-1);
+        el.value = newChar;
+        el.dataset.prev = newChar;
+        updateManualRowFilledState(el, idx);
+        updateManualProgress();
+        return;
+      }
+
+      // 輸入滿兩個數字時，鎖定兩位整數並自動切換至下一位學生
+      if (digits.length >= 2) {
+        const twoDigits = digits.slice(0, 2);
+        el.value = twoDigits;
+        el.dataset.prev = twoDigits;
+        updateManualRowFilledState(el, idx);
+        updateManualProgress();
+        focusNextManualInput(idx);
+        return;
+      }
+
+      el.value = digits;
+      el.dataset.prev = digits;
+      updateManualRowFilledState(el, idx);
+      updateManualProgress();
+    }
+
+    function handleManualScoreKeydown(e, idx) {
+      if (e.key === "Enter" || e.key === "ArrowDown") {
+        e.preventDefault();
+        focusNextManualInput(idx);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        focusPrevManualInput(idx);
+      }
+    }
+
+    function setManualScore100(idx) {
+      const el = document.getElementById(`manualScore-${idx}`);
+      if (!el) return;
+      el.value = "100";
+      el.dataset.prev = "100";
+      updateManualRowFilledState(el, idx);
+      updateManualProgress();
+      focusNextManualInput(idx);
+    }
+
+    function focusNextManualInput(idx) {
+      const nextEl = document.getElementById(`manualScore-${idx + 1}`);
+      if (nextEl) {
+        nextEl.focus();
+        setTimeout(() => {
+          try {
+            nextEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } catch (e) {}
+        }, 40);
+      } else {
+        // 已是最後一位學生，將焦點移至「確認與查看統計」按鈕並捲動到位
+        const curEl = document.getElementById(`manualScore-${idx}`);
+        if (curEl) curEl.blur();
+        const confirmBtn = document.getElementById('btnManualConfirm');
+        if (confirmBtn) {
+          try {
+            confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } catch (e) {}
+        }
+      }
+    }
+
+    function focusPrevManualInput(idx) {
+      if (idx <= 0) return;
+      const prevEl = document.getElementById(`manualScore-${idx - 1}`);
+      if (prevEl) {
+        prevEl.focus();
+        try {
+          prevEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) {}
+      }
+    }
+
+    function updateManualRowFilledState(el, idx) {
+      const row = document.getElementById(`manualRow-${idx}`);
+      if (!row) return;
+      if (el.value.trim() !== "") {
+        row.classList.add('filled-row');
+      } else {
+        row.classList.remove('filled-row');
+      }
+    }
+
+    function updateManualProgress() {
+      const total = manualCurrentStudents.length;
+      let filled = 0;
+      for (let i = 0; i < total; i++) {
+        const el = document.getElementById(`manualScore-${i}`);
+        if (el && el.value.trim() !== "") filled++;
+      }
+      const badge = document.getElementById('manualProgressBadge');
+      if (badge) {
+        badge.innerText = `已輸入 ${filled} / ${total} 人`;
+      }
+    }
+
+    function clearManualScores(skipConfirm) {
+      const total = manualCurrentStudents.length;
+      let hasAny = false;
+      for (let i = 0; i < total; i++) {
+        const el = document.getElementById(`manualScore-${i}`);
+        if (el && el.value.trim() !== "") {
+          hasAny = true;
+          break;
+        }
+      }
+      if (!hasAny) return;
+      if (!skipConfirm && !confirm("確定要清空目前輸入的所有分數重填嗎？")) return;
+
+      for (let i = 0; i < total; i++) {
+        const el = document.getElementById(`manualScore-${i}`);
+        if (el) {
+          el.value = "";
+          el.dataset.prev = "";
+          updateManualRowFilledState(el, i);
+        }
+      }
+      updateManualProgress();
+    }
+
+    /* 計算簡要統計 (與 Code.gs generateCurrentSubjectStats 公式邏輯完全一致) */
+    function computeBriefStatsClient(scores) {
+      const valid = scores.map(Number).filter(n => !isNaN(n));
+      const count = valid.length;
+      if (count === 0) return null;
+
+      let sum = 0, max = valid[0], min = valid[0];
+      let c100 = 0, c90_100 = 0, c80_90 = 0, c70_80 = 0, c60_70 = 0, cFail = 0;
+
+      for (let i = 0; i < count; i++) {
+        const sc = valid[i];
+        sum += sc;
+        if (sc > max) max = sc;
+        if (sc < min) min = sc;
+
+        if (sc === 100) c100++;
+        else if (sc >= 90 && sc < 100) c90_100++;
+        else if (sc >= 80 && sc < 90) c80_90++;
+        else if (sc >= 70 && sc < 80) c70_80++;
+        else if (sc >= 60 && sc < 70) c60_70++;
+        else if (sc >= 0 && sc < 60) cFail++;
+      }
+
+      const avg = Math.round((sum / count) * 10) / 10;
+      const passRate = Math.round(((count - cFail) / count) * 1000) / 10;
+      return { count, avg, max, min, c100, c90_100, c80_90, c70_80, c60_70, cFail, passRate };
+    }
+
+    function openManualStatsConfirm() {
+      const sheetName = document.getElementById('manualSheetSelect').value;
+      if (!sheetName) {
+        alert("⚠️ 請先選擇要寫入的目標班級分頁！");
+        return;
+      }
+      const sheetObj = (systemMeta.manualSheets || []).find(s => s.sheetName === sheetName);
+      const isMainSheet = sheetObj ? sheetObj.isMainSheet : (sheetName === "導師成績總表");
+      const subject = document.getElementById('manualSubjectInput').value.trim();
+      const evalType = document.getElementById('manualEvalTypeSelect').value || "小考";
+      const examRange = document.getElementById('manualRangeInput').value.trim() || "無範圍";
+      const examDate = document.getElementById('manualDateInput').value.trim() || getLocalTodayStr();
+
+      if (isMainSheet && !subject) {
+        alert("⚠️ 寫入「導師成績總表」時，請填寫科目名稱！");
+        document.getElementById('manualSubjectInput').focus();
+        return;
+      }
+
+      const scores = [];
+      const scoreValues = [];
+      const missingSeats = [];
+
+      manualCurrentStudents.forEach((st, idx) => {
+        const el = document.getElementById(`manualScore-${idx}`);
+        const raw = el ? el.value.trim() : "";
+        if (raw !== "" && !isNaN(Number(raw))) {
+          const val = parseInt(raw, 10);
+          scores.push({ seat: st.seat, score: val });
+          scoreValues.push(val);
+        } else {
+          missingSeats.push(`${st.seat}號(${st.name})`);
+        }
+      });
+
+      if (scores.length === 0) {
+        alert("⚠️ 請至少輸入一位學生的成績再點選確認！");
+        return;
+      }
+
+      const stats = computeBriefStatsClient(scoreValues);
+      pendingManualPayload = {
+        sheetName: sheetName,
+        subject: subject,
+        evalType: evalType,
+        examRange: examRange,
+        examDate: examDate,
+        scores: scores
+      };
+
+      // 填入確認視窗摘要資訊
+      const summaryEl = document.getElementById('manualConfirmMetaSummary');
+      summaryEl.innerHTML = `
+        <div><strong>🏫 寫入分頁：</strong>${sheetName}（最新欄位）</div>
+        <div><strong>📌 類型 / 科目：</strong>${isMainSheet ? subject : evalType}</div>
+        <div><strong>📖 測驗範圍：</strong>${examRange} <span style="color:#64748b;">(純文字)</span></div>
+        <div><strong>📅 測驗日期：</strong>${examDate} ｜ <strong>應到/實填：</strong>${stats.count} / ${manualCurrentStudents.length} 人</div>
+      `;
+
+      document.getElementById('statPreviewAvg').innerText = stats.avg;
+      document.getElementById('statPreviewMax').innerText = stats.max;
+      document.getElementById('statPreviewMin').innerText = stats.min;
+      document.getElementById('statPreviewPassRate').innerText = `${stats.passRate}%`;
+
+      const distRows = [
+        { label: "100 分人數", val: stats.c100, color: "#16a34a" },
+        { label: "90 - 99 分人數 (90-100)", val: stats.c90_100, color: "#15803d" },
+        { label: "80 - 89 分人數 (80-90)", val: stats.c80_90, color: "#2563eb" },
+        { label: "70 - 79 分人數 (70-80)", val: stats.c70_80, color: "#0284c7" },
+        { label: "60 - 69 分人數 (60-70)", val: stats.c60_70, color: "#d97706" },
+        { label: "不及格人數 (<60)", val: stats.cFail, color: "#dc2626" }
+      ];
+      document.getElementById('statPreviewDistBody').innerHTML = distRows.map(r => `
+        <tr>
+          <td>${r.label}</td>
+          <td style="font-weight:800; color:${r.color};">${r.val} 人</td>
+        </tr>
+      `).join("");
+
+      const missingBox = document.getElementById('statPreviewMissingNote');
+      if (missingSeats.length > 0) {
+        missingBox.style.display = "block";
+        const previewMissing = missingSeats.slice(0, 6).join("、") + (missingSeats.length > 6 ? ` ...等共 ${missingSeats.length} 位` : "");
+        missingBox.innerHTML = `⚠️ <strong>尚未填寫分數 (${missingSeats.length} 位，將留白)</strong>：${previewMissing}`;
+      } else {
+        missingBox.style.display = "none";
+      }
+
+      document.getElementById('manualStatsModal').style.display = "flex";
+    }
+
+    function closeManualStatsModal(e) {
+      document.getElementById('manualStatsModal').style.display = "none";
+    }
+
+    function submitManualTypedScores() {
+      if (!pendingManualPayload) return;
+      const payloadToSave = pendingManualPayload;
+
+      closeManualStatsModal();
+      showLoading("💾 正在寫入班級分頁最新欄位並計算統計，請稍候...");
+
+      google.script.run
+        .withSuccessHandler(res => {
+          hideLoading();
+          if (res && res.success) {
+            const st = res.stats || {};
+            alert(
+              `✅ 成績寫入成功！\n` +
+              `分頁：【${res.sheetName}】第 ${res.colLetter} 欄 (第 ${res.addedColumn} 欄)\n` +
+              `寫入人數：${res.writtenCount} 筆\n` +
+              `平均：${st.avg} ｜ 最高：${st.max} ｜ 最低：${st.min}\n` +
+              `（已同步透過 generateCurrentSubjectStats 更新分頁底部統計欄位）`
+            );
+            pendingManualPayload = null;
+            document.getElementById('manualRangeInput').value = "";
+            clearManualScores(true);
+          } else {
+            alert("⚠️ 寫入異常，請確認試算表權限或分頁格式。");
+          }
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("❌ 寫入試算表失敗：" + err.message);
+        })
+        .saveManualTypedScores(payloadToSave);
     }
 
     function initUploadZoneEvents() {

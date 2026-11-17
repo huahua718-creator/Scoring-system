@@ -4,3 +4,6 @@ Thumbs.db
 *.tmp
 node_modules/
 .vscode/
+.clasp.json
+.clasp.*.json
+sync-apps-script.ps1

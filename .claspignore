@@ -1,0 +1,16 @@
+# 忽略所有檔案
+**/*
+
+# 僅允許上傳 GAS 原始碼與介面
+!Code.gs
+!TeacherHub.html
+!SubjectDashboard.html
+!SidebarQA.html
+!Index.html
+!BatchReport.html
+!DateRangeDialog.html
+!WeightSettingDialog.html
+!ClearDemoDataDialog.html
+!ImportOldScoresDialog.html
+!appsscript.json
+
