@@ -5,10 +5,10 @@
 
 ---
 
-## 📋 線上 Google 試算表範本（一鍵建立副本即可使用）
+## 📋 線上 Google 試算表範本（點擊連結直接建立副本）
 
-* **官方示範試算表範本**：👉 **[新成績系統範本（Google Sheets）](https://docs.google.com/spreadsheets/d/16_KGgfodr-71fZh-7vTFMxSBjzzgZv7sn8-QJ2l1lwE/edit?usp=drivesdk)**
-  * 💡 開啟連結後點選上方選單 **「檔案」** $\rightarrow$ **「建立副本」**，即可直接擁有已內建完整程式碼與示範資料的雲端試算表；若需清除測試資料開學正式使用，點選選單 **「🌟 教師主控台」** $\rightarrow$ **「🧹 清理範本示範資料」** 即可一鍵切換！
+* **官方示範試算表範本**：👉 **[新成績系統範本（點擊建立副本）](https://docs.google.com/spreadsheets/d/16_KGgfodr-71fZh-7vTFMxSBjzzgZv7sn8-QJ2l1lwE/copy)**
+  * 💡 點擊上方連結後，將直接進入 Google 試算表「建立副本」頁面，點選 **「建立副本」** 即可立刻將已內建完整程式碼與示範資料的試算表儲存至您的雲端硬碟；若需清除測試資料開學正式使用，點選選單 **「🌟 教師主控台」** $\rightarrow$ **「🧹 清理範本示範資料」** 即可一鍵切換！
 
 ---
 
@@ -192,9 +192,8 @@
 ## 🛠️ 安裝與部署指南
 
 ### 方式一：從官方範本建立副本（最快，推薦 🌟）
-1. 開啟 **[新成績系統範本](https://docs.google.com/spreadsheets/d/16_KGgfodr-71fZh-7vTFMxSBjzzgZv7sn8-QJ2l1lwE/edit?usp=drivesdk)**。
-2. 點選上方選單 **「檔案」** $\rightarrow$ **「建立副本」** 存至您的 Google 雲端硬碟。
-3. 重新整理後可執行 **「🌟 教師主控台」** $\rightarrow$ **「🧹 清理範本示範資料」**，並在 `System_Settings` 填入您的 Gemini API Key 與自訂 `TEACHER_PIN`，接著部署 Web App 即可開始使用。
+1. 點擊 **[新成績系統範本（直接建立副本）](https://docs.google.com/spreadsheets/d/16_KGgfodr-71fZh-7vTFMxSBjzzgZv7sn8-QJ2l1lwE/copy)**，並點選 **「建立副本」** 存至您的 Google 雲端硬碟。
+2. 重新整理後可執行 **「🌟 教師主控台」** $\rightarrow$ **「🧹 清理範本示範資料」**，並在 `System_Settings` 填入您的 Gemini API Key 與自訂 `TEACHER_PIN`，接著部署 Web App 即可開始使用。
 
 ### 方式二：手動建立專案並貼入程式碼
 1. **建立 Google 試算表**：
