@@ -147,6 +147,36 @@
       background: #94a3b8;
       cursor: not-allowed;
     }
+    .btn-outline {
+      background: #ffffff;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+    .btn-outline:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    .footer-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .status-banner {
+      display: none;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .status-banner.success {
+      display: block;
+      background: #ecfdf5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+    }
     .preview-box {
       background: #f8fafc;
       border: 1px solid var(--border);
@@ -220,7 +250,10 @@
   <div class="card" id="sourceUrlCard" style="display: none;">
     <div class="form-group" style="margin-bottom: 0;">
       <label>Google 試算表網址或 ID：</label>
-      <input type="text" id="sourceUrlInput" class="form-control" placeholder="https://docs.google.com/spreadsheets/d/...">
+      <div style="display: flex; gap: 6px;">
+        <input type="text" id="sourceUrlInput" class="form-control" placeholder="https://docs.google.com/spreadsheets/d/...">
+        <button type="button" class="btn btn-outline" style="white-space: nowrap; padding: 6px 10px;" onclick="clearSourceUrl()">🧹 清空</button>
+      </div>
       <div style="font-size: 11px; color: #64748b; margin-top: 4px;">請確保已開放存取權限，或為同帳號下的檔案</div>
     </div>
   </div>
@@ -230,12 +263,22 @@
     🔍 讀取舊成績單內容
   </button>
 
+  <!-- 匯入成功提示與連續匯入歷史紀錄 -->
+  <div id="importStatusBanner" class="status-banner"></div>
+
+  <div class="card" id="importHistoryCard" style="display: none; background: #f0fdf4; border-color: #86efac;">
+    <div style="font-weight: bold; color: #166534; font-size: 13px; margin-bottom: 6px;">
+      ✅ 本次已匯入完成清單 (<span id="importedCountBadge">0</span> 份)：
+    </div>
+    <ul id="importHistoryList" style="margin: 0; padding-left: 18px; font-size: 12px; color: #15803d; line-height: 1.6; max-height: 100px; overflow-y: auto;"></ul>
+  </div>
+
   <!-- 解析設定區塊 (預設隱藏，分析成功後顯示) -->
   <div class="card" id="configCard" style="display: none;">
     <div style="font-weight: bold; margin-bottom: 10px; color: var(--primary);">⚙️ 轉換為新標準分頁設定</div>
 
     <div class="form-group">
-      <label>選擇來源工作表：</label>
+      <label>選擇來源工作表 (可連續選取不同分頁依序匯入)：</label>
       <select id="sheetSelect" class="form-control" onchange="onSourceSheetChange()"></select>
     </div>
 
@@ -282,7 +325,14 @@
     </div>
 
     <button class="btn btn-primary" id="btnImport" onclick="startExecuteImport()" style="background: var(--success); margin-top: 6px;">
-      🚀 開始自動轉換並建立新分頁
+      🚀 匯入此分頁並建立新工作表 (留在本視窗繼續匯入)
+    </button>
+  </div>
+
+  <!-- 底部離開控制區 -->
+  <div class="footer-actions">
+    <button type="button" class="btn btn-outline" style="width: 100%;" onclick="closeImportDialog()">
+      🚪 完成所有匯入並離開
     </button>
   </div>
 
@@ -296,9 +346,22 @@
     let currentSourceType = 'UPLOAD';
     let uploadedFileBlob = null; // { name, base64 }
     let analyzedResult = null;
+    let importedSourceSheets = new Set(); // 目前來源檔案中已匯入的分頁名稱
+    let importedHistory = [];             // 本次對話累積成功匯入紀錄
+    let tempSsIdsToCleanup = [];          // 關閉視窗時才清理的 Excel 暫存試算表 ID
+
+    function getLocalTodayStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
 
     // 初始化日期
-    document.getElementById('defaultDateInput').value = new Date().toISOString().split('T')[0];
+    document.getElementById('defaultDateInput').value = getLocalTodayStr();
+
+    function clearSourceUrl() {
+      document.getElementById('sourceUrlInput').value = '';
+      document.getElementById('sourceUrlInput').focus();
+    }
 
     // 切換來源 Tab
     function switchSourceTab(type) {
@@ -309,6 +372,7 @@
       document.getElementById('sourceUrlCard').style.display = type === 'URL' ? 'block' : 'none';
       document.getElementById('configCard').style.display = 'none';
       analyzedResult = null;
+      importedSourceSheets = new Set();
     }
 
     // 拖拉上傳支援
@@ -396,6 +460,10 @@
             return;
           }
           analyzedResult = res;
+          importedSourceSheets = new Set();
+          if (res.tempSsId && !tempSsIdsToCleanup.includes(res.tempSsId)) {
+            tempSsIdsToCleanup.push(res.tempSsId);
+          }
           renderAnalyzedSheets(res.sheets);
         })
         .withFailureHandler(err => {
@@ -405,15 +473,20 @@
         .analyzeOldScoresSource(payload);
     }
 
-    function renderAnalyzedSheets(sheets) {
+    function renderAnalyzedSheets(sheets, selectedName) {
       const select = document.getElementById('sheetSelect');
       select.innerHTML = '';
-      sheets.forEach((s, idx) => {
+      sheets.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s.sheetName;
-        opt.innerText = `${s.sheetName} (${s.rowCount} 列 × ${s.colCount} 欄)`;
+        const prefix = importedSourceSheets.has(s.sheetName) ? "✅ [已匯入] " : "";
+        opt.innerText = `${prefix}${s.sheetName} (${s.rowCount} 列 × ${s.colCount} 欄)`;
         select.appendChild(opt);
       });
+
+      if (selectedName && sheets.some(s => s.sheetName === selectedName)) {
+        select.value = selectedName;
+      }
 
       document.getElementById('configCard').style.display = 'block';
       onSourceSheetChange();
@@ -456,14 +529,14 @@
         }
       } else {
         if (c) {
-          input.value = `${c}導師總表`;
+          input.value = `${c}導師成績總表`;
         } else {
-          input.value = `新導師成績總表`;
+          input.value = `導師成績總表`;
         }
       }
     }
 
-    // 執行匯入轉換
+    // 執行匯入轉換 (匯入後保留在視窗以利連續匯入)
     function startExecuteImport() {
       const newSheetName = document.getElementById('newSheetNameInput').value.trim();
       const className = document.getElementById('targetClassName').value.trim();
@@ -490,7 +563,8 @@
         className: className,
         subjectName: subjectName || "平時測驗",
         newSheetName: newSheetName,
-        defaultDate: defaultDate || new Date().toISOString().split('T')[0]
+        defaultDate: defaultDate || getLocalTodayStr(),
+        cleanupTempNow: false
       };
 
       showLoading("正在將舊成績單格式轉換並建立新分頁...");
@@ -498,8 +572,23 @@
         .withSuccessHandler(res => {
           hideLoading();
           if (res && res.success) {
-            alert(`🎉 恭喜！舊成績單已成功匯入至新分頁【${res.newSheetName}】！\n共匯入 ${res.studentsCount} 位學生、${res.testsCount} 次測驗。\n已自動為您套用標準規範與美化格式。`);
-            google.script.host.close();
+            importedSourceSheets.add(sourceSheetName);
+            importedHistory.push({
+              sourceSheet: sourceSheetName,
+              newSheet: res.newSheetName,
+              studentsCount: res.studentsCount,
+              testsCount: res.testsCount
+            });
+
+            renderImportHistory();
+
+            const banner = document.getElementById('importStatusBanner');
+            banner.className = 'status-banner success';
+            banner.innerHTML = `🎉 已成功匯入【${res.newSheetName}】(${res.studentsCount} 位學生、${res.testsCount} 次測驗)！您可以直接選擇下一個分頁或貼上新網址繼續匯入，結束後請點「完成所有匯入並離開」。`;
+
+            // 自動切換至下一個尚未匯入的分頁，方便連續作業
+            const nextUnimported = (analyzedResult.sheets || []).find(s => !importedSourceSheets.has(s.sheetName));
+            renderAnalyzedSheets(analyzedResult.sheets, nextUnimported ? nextUnimported.sheetName : sourceSheetName);
           } else {
             alert("匯入失敗: " + (res ? res.message : "未知錯誤"));
           }
@@ -509,6 +598,40 @@
           alert("匯入發生異常: " + err.message);
         })
         .executeImportOldScores(params);
+    }
+
+    function renderImportHistory() {
+      const card = document.getElementById('importHistoryCard');
+      const list = document.getElementById('importHistoryList');
+      const badge = document.getElementById('importedCountBadge');
+
+      if (importedHistory.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+      card.style.display = 'block';
+      badge.innerText = importedHistory.length;
+      list.innerHTML = importedHistory.map((item, idx) =>
+        `<li>#${idx + 1} 來源「${item.sourceSheet}」 → 新分頁 <b>【${item.newSheet}】</b>（${item.studentsCount}人 / ${item.testsCount}次測驗）</li>`
+      ).join('');
+    }
+
+    function closeImportDialog() {
+      if (tempSsIdsToCleanup.length > 0) {
+        showLoading("正在清理暫存檔並準備關閉視窗...");
+        google.script.run
+          .withSuccessHandler(() => {
+            hideLoading();
+            google.script.host.close();
+          })
+          .withFailureHandler(() => {
+            hideLoading();
+            google.script.host.close();
+          })
+          .cleanupOldScoresTempFiles(tempSsIdsToCleanup);
+      } else {
+        google.script.host.close();
+      }
     }
   </script>
 </body>

@@ -209,7 +209,7 @@ function doGet(e) {
  */
 function getStudentScores(seat, password) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tutorSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const tutorSheet = findMatchingHomeroomSheet(ss);
   if (!tutorSheet) return { success: false, message: "系統尚未建立導師總表" };
 
   const studentEndRow = getStudentEndRow(tutorSheet, 2, 3);
@@ -793,11 +793,12 @@ function importSingleExcelSheetWithRouting(sourceSheet, ss) {
 
   if (lastRow < 4) return { status: "NONE", cols: 0 };
 
-  const isMainSheet = (tabName === "導師成績總表");
+  const isMainSheet = isHomeroomSheetName(tabName);
   let targetSheet = null;
 
   if (isMainSheet) {
-    targetSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+    const srcA1Class = normalizeClassName(String(sourceSheet.getRange("A1").getValue() || "").trim());
+    targetSheet = ss.getSheetByName(tabName) || findMatchingHomeroomSheet(ss, srcA1Class);
   } else {
     targetSheet = ss.getSheetByName(tabName);
     // 【核心防呆】：若系統中無此專任分頁，跳過寫入
@@ -995,7 +996,7 @@ function importScoresFromHandwrittenImage(fileId) {
   Logger.log(">>> 開始辨識照片，傳入的 File ID 為: [" + fileId + "]");
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const mainSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const mainSheet = findMatchingHomeroomSheet(ss);
   const mainClassName = normalizeClassName(String(mainSheet.getRange("A1").getValue()).trim());
 
   const imageFile = DriveApp.getFileById(fileId);
@@ -1103,9 +1104,11 @@ function importScoresFromHandwrittenImage(fileId) {
 
       let targetSheetsConfig = [];
 
-      // 1. 若辨識出的班級為導師班，將成績填入「導師成績總表」
-      if (recognizedClass === mainClassName) {
-        targetSheetsConfig.push({ sheet: mainSheet, mode: "MAIN" });
+      // 1. 若辨識出的班級為任一導師總表分頁的班級 (相容「導師成績總表」與「班級+導師(成績)總表」)
+      const matchedHomeroom = findMatchingHomeroomSheet(ss, recognizedClass, false) ||
+        (recognizedClass === mainClassName ? mainSheet : null);
+      if (matchedHomeroom) {
+        targetSheetsConfig.push({ sheet: matchedHomeroom, mode: "MAIN" });
       }
 
       // 2. 搜尋專任班級分頁 (如: 國二愛理化)
@@ -1701,7 +1704,7 @@ function createNewSubjectClassSheet() {
  */
 function getEarliestDateInMainSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const mainSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const mainSheet = findMatchingHomeroomSheet(ss);
   const lastCol = mainSheet.getLastColumn();
   if (lastCol < 4) return Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd");
 
@@ -1759,7 +1762,7 @@ function showSheetWriteDialog() {
  */
 function generateWeeklyReportByRange(startDateStr, endDateStr) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tutorSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const tutorSheet = findMatchingHomeroomSheet(ss);
   if (!tutorSheet) throw new Error("找不到導師成績總表！");
 
   const studentEndRow = getStudentEndRow(tutorSheet, 2, 3);
@@ -2069,6 +2072,58 @@ function normalizeClassName(classNameStr) {
   return clean;
 }
 
+/**
+ * 判斷工作表名稱是否為「導師成績總表」格式之分頁 (相容「導師成績總表」與「班級+導師(成績)總表」)
+ * @param {string} sheetName 工作表名稱
+ * @returns {boolean}
+ */
+function isHomeroomSheetName(sheetName) {
+  const name = String(sheetName || "").trim();
+  if (!name || name === "導師班成績統計表" || name.endsWith("_總成績") || name.endsWith("_總成績報表") || name.endsWith("_區間成績單")) {
+    return false;
+  }
+  return /導師(成績)?總表/.test(name);
+}
+
+/**
+ * 依據班級代碼尋找對應的導師成績總表分頁
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss 試算表實例
+ * @param {string} [targetClassCode] 欲比對的班級名稱
+ * @param {boolean} [allowFallbackFirst=true] 找不到 A1 匹配時是否保底回傳預設導師總表
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet|null}
+ */
+function findMatchingHomeroomSheet(ss, targetClassCode, allowFallbackFirst = true) {
+  const sheets = ss.getSheets();
+  const normalizedTarget = targetClassCode ? normalizeClassName(String(targetClassCode).trim()) : "";
+
+  if (normalizedTarget) {
+    // 優先比對標準名稱「導師成績總表」與所有「班級+導師(成績)總表」之 A1 班級
+    for (let i = 0; i < sheets.length; i++) {
+      const sh = sheets[i];
+      if (isHomeroomSheetName(sh.getName())) {
+        const a1Class = normalizeClassName(String(sh.getRange("A1").getValue() || "").trim());
+        if (a1Class && (a1Class === normalizedTarget || a1Class.includes(normalizedTarget) || normalizedTarget.includes(a1Class))) {
+          return sh;
+        }
+      }
+    }
+    if (!allowFallbackFirst) {
+      return null;
+    }
+  }
+
+  const exactMain = ss.getSheetByName("導師成績總表");
+  if (exactMain) return exactMain;
+
+  for (let i = 0; i < sheets.length; i++) {
+    if (isHomeroomSheetName(sheets[i].getName())) {
+      return sheets[i];
+    }
+  }
+
+  return allowFallbackFirst ? (sheets[0] || null) : null;
+}
+
 function letterToColumn(letter) {
   let column = 0, length = letter.length;
   for (let i = 0; i < length; i++) {
@@ -2215,7 +2270,7 @@ function openBatchReportWindow(startDateStr, endDateStr) {
  */
 function getStudentReportData(startDateStr, endDateStr) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tutorSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const tutorSheet = findMatchingHomeroomSheet(ss);
   if (!tutorSheet) throw new Error("找不到導師成績總表！");
 
   let studentEndRow = 3;
@@ -2710,7 +2765,7 @@ function generateCurrentSubjectStats(silent = false) {
     if (lastCol < 2) continue; // 欄位不足則跳過
 
     // 自動判斷分頁結構：導師成績總表座號在 B 欄(分數 D 欄起)，專任分頁座號在 A 欄(分數 C 欄起)
-    const isMainSheet = (sheetName === "導師成績總表");
+    const isMainSheet = isHomeroomSheetName(sheetName);
     const seatColIdx = isMainSheet ? 2 : 1;
     const startScoreColIdx = isMainSheet ? 4 : 3;
 
@@ -2974,7 +3029,7 @@ function testThemeAssets() {
  */
 function addNewSubjectColumnToTutorSheet(subject, examRange, examDate, scoreMap, optionalTargetSheet) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tutorSheet = optionalTargetSheet || (ss.getSheetByName("導師成績總表") || ss.getSheets()[0]);
+  const tutorSheet = optionalTargetSheet || findMatchingHomeroomSheet(ss);
   if (!tutorSheet) throw new Error("找不到「導師成績總表」！");
 
   const lastCol = tutorSheet.getLastColumn();
@@ -3028,7 +3083,7 @@ function importSubjectSheetToTutorSheetUI() {
 
   // 1. 防呆：禁止在系統或管理分頁上執行
   const reservedSheets = ["導師成績總表", "導師班成績統計表", "System_Settings", "科任跨班分析總表", "系統操作說明與格式範本"];
-  if (reservedSheets.includes(sheetName) || sheetName.endsWith("_總成績報表")) {
+  if (reservedSheets.includes(sheetName) || isHomeroomSheetName(sheetName) || sheetName.endsWith("_總成績報表")) {
     ui.alert("⚠️ 請先切換至科任成績分頁（例如：國二愛理化、101理化），再執行匯入！");
     return;
   }
@@ -3047,8 +3102,8 @@ function importSubjectSheetToTutorSheetUI() {
     parsedSubject = "科目";
   }
 
-  // 3. 取得「導師成績總表」並比對 A1 的班級
-  const tutorSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  // 3. 取得「導師成績總表」(相容班級+導師成績總表) 並比對 A1 的班級
+  const tutorSheet = findMatchingHomeroomSheet(ss, parsedClass);
   if (!tutorSheet) {
     ui.alert("⚠️ 找不到「導師成績總表」分頁！");
     return;
@@ -3711,8 +3766,8 @@ function generateSystemManualSheet() {
  */
 function parseSubjectSheetInfo(sheetName) {
   const name = String(sheetName || "").trim();
-  const excludeList = ["導師成績總表", "System_Settings", "科任跨班分析總表"];
-  if (excludeList.includes(name) || name.startsWith("工作表") || name.startsWith("Sheet") || name.endsWith("_總成績")) {
+  const excludeList = ["導師成績總表", "導師班成績統計表", "System_Settings", "科任跨班分析總表", "系統操作說明與格式範本"];
+  if (excludeList.includes(name) || isHomeroomSheetName(name) || name.startsWith("工作表") || name.startsWith("Sheet") || name.endsWith("_總成績") || name.endsWith("_總成績報表") || name.endsWith("_區間成績單")) {
     return null;
   }
   if (name.length < 4) return null;
@@ -4368,7 +4423,7 @@ function createSubjectAnalyticsSheetUI() {
 function getAvailableClassesAndSubjects() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets();
-  const mainSheet = ss.getSheetByName("導師成績總表") || sheets[0];
+  const mainSheet = findMatchingHomeroomSheet(ss);
   const mainClassName = normalizeClassName(String(mainSheet ? mainSheet.getRange("A1").getValue() : "").trim());
 
   // 1. 導師班學生名單 (座號 -> 姓名)
@@ -4397,6 +4452,11 @@ function getAvailableClassesAndSubjects() {
   // 檢查所有工作表
   sheets.forEach(sh => {
     const sName = sh.getName();
+    if (isHomeroomSheetName(sName)) {
+      const hrClass = normalizeClassName(String(sh.getRange("A1").getValue() || "").trim());
+      if (hrClass) classesSet.add(hrClass);
+      return;
+    }
     // 檢查是否為專任五碼格式 (如 101理化 或 國二愛理化)
     const info = parseSubjectSheetInfo(sName);
     if (info) {
@@ -4454,7 +4514,7 @@ function getManualEntrySheetsList() {
       return;
     }
 
-    const isMainSheet = (sName === "導師成績總表");
+    const isMainSheet = isHomeroomSheetName(sName);
     const seatColIdx = isMainSheet ? 2 : 1;
     const nameColIdx = isMainSheet ? 3 : 2;
     const studentEndRow = getStudentEndRow(sh, seatColIdx, nameColIdx);
@@ -4743,7 +4803,7 @@ function saveConfirmedOcrScores(confirmedList) {
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const mainSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const mainSheet = findMatchingHomeroomSheet(ss);
   const mainClassName = normalizeClassName(String(mainSheet.getRange("A1").getValue()).trim());
 
   let backupFolder = null;
@@ -4787,27 +4847,29 @@ function saveConfirmedOcrScores(confirmedList) {
 
     let writtenTargets = [];
 
-    // 1. 若為本導師班，寫入「導師成績總表」
-    if (className === mainClassName && mainSheet) {
-      const lastCol = mainSheet.getLastColumn();
+    // 1. 若為導師班，寫入對應的「導師成績總表」 (相容「導師成績總表」與「班級+導師(成績)總表」)
+    const matchedHomeroomSheet = findMatchingHomeroomSheet(ss, className, false) ||
+      ((className === mainClassName && mainSheet) ? mainSheet : null);
+    if (matchedHomeroomSheet) {
+      const lastCol = matchedHomeroomSheet.getLastColumn();
       const startCol = (lastCol < 3) ? 4 : lastCol + 1;
 
-      mainSheet.getRange(1, startCol).setValue(subject);
-      mainSheet.getRange(2, startCol).setNumberFormat("@").setValue(examRange);
-      mainSheet.getRange(3, startCol).setValue(examDate);
+      matchedHomeroomSheet.getRange(1, startCol).setNumberFormat("@").setValue(subject);
+      matchedHomeroomSheet.getRange(2, startCol).setNumberFormat("@").setValue(examRange);
+      matchedHomeroomSheet.getRange(3, startCol).setNumberFormat("@").setValue(examDate);
 
-      const studentEndRow = getStudentEndRow(mainSheet, 2, 3);
+      const studentEndRow = getStudentEndRow(matchedHomeroomSheet, 2, 3);
       const totalStudents = studentEndRow - 3;
 
       if (totalStudents > 0) {
-        const seatList = mainSheet.getRange(4, 2, totalStudents, 1).getValues();
+        const seatList = matchedHomeroomSheet.getRange(4, 2, totalStudents, 1).getValues();
         const outputScores = seatList.map(r => {
           const seatNum = parseInt(r[0], 10);
           return [scoreMap.has(seatNum) ? scoreMap.get(seatNum) : ""];
         });
-        mainSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores);
+        matchedHomeroomSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores);
       }
-      writtenTargets.push(`導師成績總表 (第 ${startCol} 欄)`);
+      writtenTargets.push(`${matchedHomeroomSheet.getName()} (第 ${startCol} 欄)`);
     }
 
     // 2. 搜尋或寫入專任班級分頁 (如 101理化 或 國二愛理化)
@@ -4958,7 +5020,7 @@ function saveManualTypedScores(payload) {
   }
 
   const sheetName = targetSheet.getName();
-  const isMainSheet = (sheetName === "導師成績總表");
+  const isMainSheet = isHomeroomSheetName(sheetName);
   const evalType = String(payload.evalType || "小考").trim() || "小考";
   const subject = String(payload.subject || "").trim();
   const examRange = String(payload.examRange || "").trim() || "無範圍";
@@ -5045,7 +5107,7 @@ function saveManualTypedScores(payload) {
  */
 function getTutorDashboardData(startDateStr, endDateStr) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tutorSheet = ss.getSheetByName("導師成績總表") || ss.getSheets()[0];
+  const tutorSheet = findMatchingHomeroomSheet(ss);
   if (!tutorSheet) throw new Error("找不到導師成績總表！");
 
   const className = normalizeClassName(String(tutorSheet.getRange("A1").getValue()).trim()) || "導師班";
@@ -5321,9 +5383,9 @@ function getParentShareInfo() {
  */
 function showImportOldScoresDialog() {
   const html = HtmlService.createHtmlOutputFromFile("ImportOldScoresDialog")
-    .setWidth(600)
-    .setHeight(680);
-  SpreadsheetApp.getUi().showModalDialog(html, "📥 快速匯入舊成績單 (自動建立合規新分頁)");
+    .setWidth(620)
+    .setHeight(720);
+  SpreadsheetApp.getUi().showModalDialog(html, "📥 快速匯入舊成績單 (支援連續匯入合規新分頁)");
 }
 
 /**
@@ -5574,12 +5636,12 @@ function executeImportOldScores(params) {
       targetSheet.getRange(3, 1).setValue("座號").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
       targetSheet.getRange(3, 2).setValue("姓名").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
 
-      // C 欄 (Col 3) 起填入測驗
+      // C 欄 (Col 3) 起填入測驗 (先設定純文字格式避免 3-1 被自動解析為日期)
       for (let t = 0; t < testCols.length; t++) {
         const col = 3 + t;
-        targetSheet.getRange(1, col).setValue(testCols[t].category).setBackground(COLOR_CAT).setFontWeight("bold").setHorizontalAlignment("center");
-        targetSheet.getRange(2, col).setValue(testCols[t].scope).setBackground(COLOR_SCOPE).setHorizontalAlignment("center");
-        targetSheet.getRange(3, col).setValue(testCols[t].date).setBackground(COLOR_DATE).setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
+        targetSheet.getRange(1, col).setNumberFormat("@").setValue(String(testCols[t].category)).setBackground(COLOR_CAT).setFontWeight("bold").setHorizontalAlignment("center");
+        targetSheet.getRange(2, col).setNumberFormat("@").setValue(String(testCols[t].scope)).setBackground(COLOR_SCOPE).setHorizontalAlignment("center");
+        targetSheet.getRange(3, col).setNumberFormat("@").setValue(String(testCols[t].date)).setBackground(COLOR_DATE).setFontWeight("bold").setHorizontalAlignment("center");
       }
 
       // 第 4 列起填入學生座號、姓名與成績 (A欄座號, B欄姓名, C欄起成績)
@@ -5597,18 +5659,21 @@ function executeImportOldScores(params) {
       targetSheet.getRange(4, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
 
     } else {
-      targetSheet.getRange(1, 1).setValue(params.className).setBackground(COLOR_BADGE).setFontWeight("bold").setHorizontalAlignment("center");
-      targetSheet.getRange(1, 2).setValue("座號").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
-      targetSheet.getRange(1, 3).setValue("姓名").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      // 【導師成績總表標準格式：A1班級防呆, A欄密碼, B欄座號, C欄姓名 (標題在 Row 3), D欄起科目/範圍/日期】
+      targetSheet.getRange(1, 1).setNumberFormat("@").setValue(String(params.className)).setBackground(COLOR_BADGE).setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(1, 2).setValue("").setHorizontalAlignment("center");
+      targetSheet.getRange(1, 3).setValue("").setHorizontalAlignment("center");
 
       targetSheet.getRange(2, 1, 1, 3).setValues([["密碼", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
-      targetSheet.getRange(3, 1, 1, 3).setValues([["身分識別", "-", "-"]]).setFontColor("#718096").setHorizontalAlignment("center");
+      targetSheet.getRange(3, 1).setValue("查詢密碼").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(3, 2).setValue("座號").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
+      targetSheet.getRange(3, 3).setValue("姓名").setBackground(COLOR_HEADER).setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
 
       for (let t = 0; t < testCols.length; t++) {
         const col = 4 + t;
-        targetSheet.getRange(1, col).setValue(testCols[t].category).setBackground(COLOR_CAT).setFontWeight("bold").setHorizontalAlignment("center");
-        targetSheet.getRange(2, col).setValue(testCols[t].scope).setBackground(COLOR_SCOPE).setHorizontalAlignment("center");
-        targetSheet.getRange(3, col).setValue(testCols[t].date).setBackground(COLOR_DATE).setFontWeight("bold").setHorizontalAlignment("center").setNumberFormat("@");
+        targetSheet.getRange(1, col).setNumberFormat("@").setValue(String(testCols[t].category)).setBackground(COLOR_CAT).setFontWeight("bold").setHorizontalAlignment("center");
+        targetSheet.getRange(2, col).setNumberFormat("@").setValue(String(testCols[t].scope)).setBackground(COLOR_SCOPE).setHorizontalAlignment("center");
+        targetSheet.getRange(3, col).setNumberFormat("@").setValue(String(testCols[t].date)).setBackground(COLOR_DATE).setFontWeight("bold").setHorizontalAlignment("center");
       }
 
       const dataRows = [];
@@ -5638,7 +5703,8 @@ function executeImportOldScores(params) {
 
     targetSheet.autoResizeColumns(1, fullRange.getNumColumns());
 
-    if (params.tempSsId) {
+    // 注意：若為連續匯入同一份 Excel 的多個分頁，暫存試算表將保留至使用者點擊「完成並離開」時統一清理
+    if (params.cleanupTempNow && params.tempSsId) {
       try { DriveApp.getFileById(params.tempSsId).setTrashed(true); } catch(e) {}
     }
 
@@ -5655,6 +5721,22 @@ function executeImportOldScores(params) {
     Logger.log("executeImportOldScores error: " + err.message);
     return { success: false, message: "轉換匯入失敗: " + err.message };
   }
+}
+
+/**
+ * 清理連續匯入舊成績期間產生的 Excel 暫存試算表
+ * @param {Array<string>} tempSsIds
+ */
+function cleanupOldScoresTempFiles(tempSsIds) {
+  if (!Array.isArray(tempSsIds) || tempSsIds.length === 0) return;
+  const uniqueIds = Array.from(new Set(tempSsIds.filter(Boolean)));
+  uniqueIds.forEach(id => {
+    try {
+      DriveApp.getFileById(id).setTrashed(true);
+    } catch (e) {
+      Logger.log("清理暫存檔略過 (" + id + "): " + e.message);
+    }
+  });
 }
 
 // ==========================================
@@ -5685,8 +5767,8 @@ function executeClearDemoData(mode) {
     for (const sh of sheets) {
       const name = sh.getName();
 
-      // 1. 處理 [導師成績總表]
-      if (name === "導師成績總表") {
+      // 1. 處理 [導師成績總表] (相容「班級+導師(成績)總表」)
+      if (isHomeroomSheetName(name)) {
         const lastCol = sh.getLastColumn();
         const lastRow = sh.getLastRow();
 
