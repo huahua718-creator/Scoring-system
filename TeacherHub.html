@@ -1734,7 +1734,142 @@
       font-weight: 700;
     }
 
+    /* 段考前綴標籤與選擇+非選合併樣式 */
+    .exam-prefix-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #c2410c;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+    .exam-prefix-chip input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #ea580c;
+      cursor: pointer;
+    }
+    .merge-source-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .merge-source-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .merge-source-card.mc-card { border-top: 4px solid #2563eb; }
+    .merge-source-card.nonmc-card { border-top: 4px solid #7c3aed; }
+    .merge-source-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-weight: 800;
+      font-size: 15px;
+      color: #0f172a;
+    }
+    .merge-source-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .merge-pill-btn {
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #475569;
+      cursor: pointer;
+    }
+    .merge-pill-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+    }
+    .merge-pill-btn.active.nonmc {
+      background: #7c3aed;
+      border-color: #7c3aed;
+    }
+    .merge-status-tag {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: #475569;
+    }
+    .merge-status-tag.loaded {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .merge-paste-box {
+      width: 100%;
+      min-height: 92px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .merge-score-input {
+      width: 74px;
+      padding: 5px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .merge-score-input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+    }
+    .exam-alert-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .badge-delta-up {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #dcfce7;
+      color: #15803d;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .badge-delta-down {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
     @media (max-width: 768px) {
+      .merge-source-grid,
+      .exam-alert-grid {
+        grid-template-columns: 1fr;
+      }
       .manual-meta-grid {
         grid-template-columns: 1fr 1fr;
         gap: 8px;
@@ -1846,6 +1981,9 @@
         <button class="sub-tab-btn" id="importModeBtn-manual" onclick="switchImportMode('manual')">
           <span>⌨️</span> <span class="subtab-text-full">手機打字快速輸入</span><span class="subtab-text-short">手機打字輸入</span>
         </button>
+        <button class="sub-tab-btn" id="importModeBtn-merge" onclick="switchImportMode('merge')">
+          <span>🧮</span> <span class="subtab-text-full">段考選擇＋非選合併 (專屬)</span><span class="subtab-text-short">選擇+非選合併</span>
+        </button>
       </div>
 
       <!-- 模式 A: AI 照片辨識匯入 -->
@@ -1926,7 +2064,7 @@
 
             <div class="manual-field">
               <label for="manualEvalTypeSelect">📌 成績類型：</label>
-              <select id="manualEvalTypeSelect">
+              <select id="manualEvalTypeSelect" onchange="onManualEvalTypeChange()">
                 <option value="小考" selected>小考</option>
                 <option value="平時小考">平時小考</option>
                 <option value="隨堂測驗">隨堂測驗</option>
@@ -1946,9 +2084,15 @@
             </div>
 
             <div class="manual-field manual-field-full">
-              <label for="manualRangeInput">📖 測驗範圍 (純文字儲存)：</label>
-              <input type="text" id="manualRangeInput" placeholder="例：3-1、第一章、L1~L2">
-              <span class="manual-hint">※ 存入試算表時將強制以純文字儲存，輸入如「3-1」不會變成日期。</span>
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <label for="manualRangeInput" style="margin:0;">📖 測驗範圍 (純文字儲存)：</label>
+                <label class="exam-prefix-chip" style="padding:4px 9px; font-size:12px;">
+                  <input type="checkbox" id="manualExamPrefixChk" onchange="toggleManualExamPrefix()">
+                  <span>🏷️ 範圍加上「段考」前綴</span>
+                </label>
+              </div>
+              <input type="text" id="manualRangeInput" placeholder="例：3-1、第一次段考、L1~L2">
+              <span class="manual-hint">※ 存入試算表時將強制以純文字儲存，輸入如「3-1」不會變成日期；勾選前綴將自動加上「段考 - 」。</span>
             </div>
           </div>
         </div>
@@ -1982,6 +2126,189 @@
           </div>
         </div>
       </div>
+
+      <!-- 模式 C: TeacherHub 專屬 — 段考選擇成績＋非選成績抓取合併總分 -->
+      <div id="importPanel-merge" style="display:none;">
+        <!-- 步驟 1: 目標寫入設定 -->
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-title" style="margin-bottom:12px;">
+            <span>🧮 段考「選擇＋非選」自動加總寫入 (TeacherHub 專屬)</span>
+            <button type="button" class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="loadExamMergeMeta(true)">🔄 重新整理分頁欄位</button>
+          </div>
+
+          <div class="manual-meta-grid">
+            <div class="manual-field manual-field-full">
+              <label for="mergeSheetSelect">🏫 目標寫入分頁 (總分將寫入此分頁最新欄位)：</label>
+              <select id="mergeSheetSelect" onchange="onMergeTargetSheetChange()">
+                <option value="">載入分頁中...</option>
+              </select>
+            </div>
+
+            <div class="manual-field" id="mergeSubjectField" style="display:none;">
+              <label for="mergeSubjectInput">📚 科目名稱 (導師總表用)：</label>
+              <input type="text" id="mergeSubjectInput" list="manualSubjectDatalist" placeholder="例：國文、數學、理化">
+            </div>
+
+            <div class="manual-field">
+              <label for="mergeEvalTypeSelect">📌 評量類型：</label>
+              <select id="mergeEvalTypeSelect">
+                <option value="段考" selected>段考</option>
+                <option value="期中考">期中考</option>
+                <option value="期末考">期末考</option>
+              </select>
+            </div>
+
+            <div class="manual-field">
+              <label for="mergeDateInput">📅 段考日期：</label>
+              <input type="date" id="mergeDateInput">
+            </div>
+
+            <div class="manual-field manual-field-full">
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <label for="mergeRangeInput" style="margin:0;">📖 段考範圍 (預設自動帶入「段考」前綴)：</label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                  <label class="exam-prefix-chip" style="padding:4px 9px; font-size:12px;">
+                    <input type="checkbox" id="mergeExamPrefixChk" checked>
+                    <span>🏷️ 自動確保「段考」前綴</span>
+                  </label>
+                  <label style="font-size:12px; color:#334155; display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+                    <input type="checkbox" id="mergeSyncPairedChk" checked style="width:15px; height:15px;">
+                    <span>同步寫入配對導師總表 / 科任分頁</span>
+                  </label>
+                </div>
+              </div>
+              <input type="text" id="mergeRangeInput" value="段考 - 第一次" placeholder="例：段考 - 第一次、第一次段考">
+            </div>
+          </div>
+        </div>
+
+        <!-- 步驟 2: 分別抓取「選擇成績」與「非選成績」 -->
+        <div class="merge-source-grid">
+          <!-- 選擇題來源卡 -->
+          <div class="merge-source-card mc-card">
+            <div class="merge-source-header">
+              <span>📝 步驟 A：抓取「選擇成績」</span>
+              <span class="merge-status-tag" id="mergeStatus-mc">尚未載入</span>
+            </div>
+            <div class="merge-source-pills">
+              <button type="button" class="merge-pill-btn active" id="mergePill-mc-sheet" onclick="switchMergeSourceType('mc','sheet')">📊 試算表欄位</button>
+              <button type="button" class="merge-pill-btn" id="mergePill-mc-paste" onclick="switchMergeSourceType('mc','paste')">📋 貼上文字</button>
+              <button type="button" class="merge-pill-btn" id="mergePill-mc-file" onclick="switchMergeSourceType('mc','file')">📁 Excel / CSV</button>
+              <button type="button" class="merge-pill-btn" id="mergePill-mc-ocr" onclick="switchMergeSourceType('mc','ocr')">📸 照片辨識</button>
+            </div>
+            <div id="mergeSourceBody-mc-sheet">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <select id="mergeSheetSrc-mc" class="student-select" style="max-width:100%;" onchange="onMergeSourceSheetChange('mc')"></select>
+                <select id="mergeColSrc-mc" class="student-select" style="max-width:100%;"></select>
+                <button type="button" class="btn btn-primary" style="justify-content:center;" onclick="loadMergeScoresFromSheetCol('mc')">📥 抓取選擇成績</button>
+              </div>
+            </div>
+            <div id="mergeSourceBody-mc-paste" style="display:none;">
+              <textarea id="mergePaste-mc" class="merge-paste-box" placeholder="貼上「座號 分數」或僅貼一欄分數 (依座號順序)&#10;例：&#10;1 56&#10;2 48&#10;3 60"></textarea>
+              <button type="button" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:8px;" onclick="parseMergePastedScores('mc')">📥 解析填入選擇成績</button>
+            </div>
+            <div id="mergeSourceBody-mc-file" style="display:none;">
+              <input type="file" id="mergeFileInput-mc" accept=".xlsx,.xls,.csv,.txt" onchange="uploadMergeTableFile('mc', event)" style="width:100%; font-size:13px; margin-bottom:8px;">
+              <div id="mergeFileCols-mc" style="font-size:12px; color:#475569;">可上傳讀卡機或成績 Excel / CSV（支援同檔含選擇＋非選多欄一鍵套用）</div>
+            </div>
+            <div id="mergeSourceBody-mc-ocr" style="display:none;">
+              <input type="file" id="mergeOcrInput-mc" accept="image/*" onchange="uploadMergeOcrPhoto('mc', event)" style="width:100%; font-size:13px;">
+              <div style="font-size:12px; color:#64748b; margin-top:6px;">拍照或選取選擇題成績單，AI 將自動辨識座號與選擇分數。</div>
+            </div>
+          </div>
+
+          <!-- 非選題來源卡 -->
+          <div class="merge-source-card nonmc-card">
+            <div class="merge-source-header">
+              <span>✍️ 步驟 B：抓取「非選成績」</span>
+              <span class="merge-status-tag" id="mergeStatus-nonMc">尚未載入</span>
+            </div>
+            <div class="merge-source-pills">
+              <button type="button" class="merge-pill-btn active nonmc" id="mergePill-nonMc-sheet" onclick="switchMergeSourceType('nonMc','sheet')">📊 試算表欄位</button>
+              <button type="button" class="merge-pill-btn" id="mergePill-nonMc-paste" onclick="switchMergeSourceType('nonMc','paste')">📋 貼上文字</button>
+              <button type="button" class="merge-pill-btn" id="mergePill-nonMc-file" onclick="switchMergeSourceType('nonMc','file')">📁 Excel / CSV</button>
+              <button type="button" class="merge-pill-btn" id="mergePill-nonMc-ocr" onclick="switchMergeSourceType('nonMc','ocr')">📸 照片辨識</button>
+            </div>
+            <div id="mergeSourceBody-nonMc-sheet">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <select id="mergeSheetSrc-nonMc" class="student-select" style="max-width:100%;" onchange="onMergeSourceSheetChange('nonMc')"></select>
+                <select id="mergeColSrc-nonMc" class="student-select" style="max-width:100%;"></select>
+                <button type="button" class="btn btn-primary" style="justify-content:center; background:#7c3aed;" onclick="loadMergeScoresFromSheetCol('nonMc')">📥 抓取非選成績</button>
+              </div>
+            </div>
+            <div id="mergeSourceBody-nonMc-paste" style="display:none;">
+              <textarea id="mergePaste-nonMc" class="merge-paste-box" placeholder="貼上「座號 分數」或僅貼一欄分數 (依座號順序)&#10;例：&#10;1 28&#10;2 22&#10;3 35"></textarea>
+              <button type="button" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:8px; background:#7c3aed;" onclick="parseMergePastedScores('nonMc')">📥 解析填入非選成績</button>
+            </div>
+            <div id="mergeSourceBody-nonMc-file" style="display:none;">
+              <input type="file" id="mergeFileInput-nonMc" accept=".xlsx,.xls,.csv,.txt" onchange="uploadMergeTableFile('nonMc', event)" style="width:100%; font-size:13px; margin-bottom:8px;">
+              <div id="mergeFileCols-nonMc" style="font-size:12px; color:#475569;">可上傳非選 / 手寫卷 Excel / CSV 成績檔</div>
+            </div>
+            <div id="mergeSourceBody-nonMc-ocr" style="display:none;">
+              <input type="file" id="mergeOcrInput-nonMc" accept="image/*" onchange="uploadMergeOcrPhoto('nonMc', event)" style="width:100%; font-size:13px;">
+              <div style="font-size:12px; color:#64748b; margin-top:6px;">拍照或選取非選成績單，AI 將自動辨識座號與非選分數。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 步驟 3: 選擇 + 非選 合併確認表 -->
+        <div class="card" id="mergeConfirmCard">
+          <div class="card-title" style="margin-bottom:12px;">
+            <span>📋 步驟 C：選擇＋非選 合併總分確認表 (可直接編輯微調，總分即時重算)</span>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="clearMergeScores()">🧹 清空</button>
+              <button type="button" class="btn btn-success" style="padding:7px 14px; font-size:13px;" onclick="submitMergedExamTotalScores()">🚀 確認總分並寫入試算表</button>
+            </div>
+          </div>
+
+          <!-- 即時總分簡要統計條 -->
+          <div class="stats-preview-grid" style="grid-template-columns: repeat(5, 1fr); margin-bottom:12px;">
+            <div class="stats-mini-card">
+              <div class="stats-mini-label">實填人數</div>
+              <div class="stats-mini-val" id="mergeStatCount" style="color:#0f172a;">0</div>
+            </div>
+            <div class="stats-mini-card">
+              <div class="stats-mini-label">總分班平均</div>
+              <div class="stats-mini-val" id="mergeStatAvg" style="color:#2563eb;">-</div>
+            </div>
+            <div class="stats-mini-card">
+              <div class="stats-mini-label">最高分</div>
+              <div class="stats-mini-val" id="mergeStatMax" style="color:#16a34a;">-</div>
+            </div>
+            <div class="stats-mini-card">
+              <div class="stats-mini-label">最低分</div>
+              <div class="stats-mini-val" id="mergeStatMin" style="color:#dc2626;">-</div>
+            </div>
+            <div class="stats-mini-card">
+              <div class="stats-mini-label">及格率</div>
+              <div class="stats-mini-val" id="mergeStatPass" style="color:#0ea5e9;">-</div>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto; max-height:460px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+            <table class="detail-table" id="mergeConfirmTable">
+              <thead style="position:sticky; top:0; z-index:2; background:#f1f5f9;">
+                <tr>
+                  <th style="width:64px;">座號</th>
+                  <th>姓名</th>
+                  <th>📝 選擇成績</th>
+                  <th>✍️ 非選成績</th>
+                  <th style="background:#eff6ff; color:#1d4ed8;">🧮 總分 (寫入值)</th>
+                </tr>
+              </thead>
+              <tbody id="mergeConfirmTableBody">
+                <tr><td colspan="5">請先選擇目標班級分頁...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+            <button type="button" class="btn btn-success" style="padding:11px 24px; font-size:15px;" onclick="submitMergedExamTotalScores()">
+              🚀 確認無誤，將總分寫入試算表
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ==============================================================
@@ -2005,6 +2332,17 @@
         </div>
       </div>
 
+      <!-- 導師端分析子分頁切換 -->
+      <div class="tabs" style="margin-bottom: 14px;">
+        <button class="sub-tab-btn active" id="tutorSubTabBtn-normal" onclick="switchTutorSubTab('normal')">
+          <span>📊</span> <span class="subtab-text-full">平時綜合追蹤</span><span class="subtab-text-short">平時追蹤</span>
+        </button>
+        <button class="sub-tab-btn" id="tutorSubTabBtn-exam" onclick="switchTutorSubTab('exam')">
+          <span>📝</span> <span class="subtab-text-full">段考專題分析</span><span class="subtab-text-short">段考分析</span>
+        </button>
+      </div>
+
+      <div id="tutorPanel-normal">
       <!-- 區塊 1: 全班各科巨觀學習曲線 (Macro View) -->
       <div class="card">
         <div class="card-title">
@@ -2134,6 +2472,152 @@
           </table>
         </div>
       </div>
+      </div><!-- /#tutorPanel-normal -->
+
+      <!-- 段考專題分析子分頁 -->
+      <div id="tutorPanel-exam" style="display:none;">
+        <div id="examEmptyBanner" class="card" style="display:none; text-align:center; padding:34px 20px;">
+          <div style="font-size:36px; margin-bottom:8px;">📝</div>
+          <h3 style="margin:0 0 8px 0; color:#1e293b;">目前查詢區間內尚未偵測到「段考」成績欄位</h3>
+          <p style="margin:0; color:#64748b; font-size:14px; line-height:1.6;">
+            只要透過「上傳資料夾 / TeacherHub 照片辨識 / 手機打字輸入 / 段考選擇＋非選合併」匯入成績時，<br>
+            於 <strong>測驗範圍 (第 2 列)</strong> 加上「<strong>段考</strong>」（或期中 / 期末）前綴，系統即會自動彙整平時 vs 段考與跨次段考進退步！
+          </p>
+        </div>
+
+        <div id="examContentContainer" style="display:none;">
+          <!-- 段考 KPI 摘要卡 -->
+          <div class="kpi-grid" style="margin-bottom:16px;">
+            <div class="kpi-card blue">
+              <div class="kpi-title">段考次別數</div>
+              <div class="kpi-value" id="examKpiSessions">0</div>
+            </div>
+            <div class="kpi-card purple">
+              <div class="kpi-title">段考採計科次</div>
+              <div class="kpi-value" id="examKpiCols">0</div>
+            </div>
+            <div class="kpi-card green">
+              <div class="kpi-title">最近段考總平均</div>
+              <div class="kpi-value" id="examKpiLatestAvg">-</div>
+            </div>
+            <div class="kpi-card yellow">
+              <div class="kpi-title">最近段考及格率</div>
+              <div class="kpi-value" id="examKpiLatestPass">-</div>
+            </div>
+            <div class="kpi-card red">
+              <div class="kpi-title">大考失常預警</div>
+              <div class="kpi-value" id="examKpiSlumpCount">0</div>
+            </div>
+            <div class="kpi-card green">
+              <div class="kpi-title">段考黑馬表揚</div>
+              <div class="kpi-value" id="examKpiDarkHorseCount">0</div>
+            </div>
+          </div>
+
+          <!-- 段考雙圖表區 -->
+          <div class="charts-grid-2x2" style="margin-bottom:16px;">
+            <div class="chart-box" style="height:310px;">
+              <div class="chart-box-title">📊 各科「平時平均 vs 段考平均」班級對比</div>
+              <div class="chart-canvas-wrap">
+                <canvas id="examCompareBarChart"></canvas>
+              </div>
+            </div>
+            <div class="chart-box" style="height:310px;">
+              <div class="chart-box-title">📈 歷次段考各科／總平均趨勢</div>
+              <div class="chart-canvas-wrap">
+                <canvas id="examSessionTrendChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- 各科平時 vs 段考數據對比表 -->
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-title">
+              <span>📋 班級各科「平時 vs 段考」表現對照</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="detail-table">
+                <thead>
+                  <tr>
+                    <th>科目</th>
+                    <th>平時次數</th>
+                    <th>平時班均</th>
+                    <th>段考次數</th>
+                    <th>段考班均</th>
+                    <th>段考－平時落差</th>
+                  </tr>
+                </thead>
+                <tbody id="examSubjectCompareBody">
+                  <tr><td colspan="6">載入中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 大考失常 vs 黑馬預警雙卡 -->
+          <div class="exam-alert-grid">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title" style="color:#b91c1c;">
+                <span>⚠️ 段考失常 / 顯著退步預警 (低於該科平時 ≥12 分)</span>
+              </div>
+              <div style="overflow-x:auto; max-height:280px; overflow-y:auto;">
+                <table class="detail-table">
+                  <thead>
+                    <tr>
+                      <th>座號 / 姓名</th>
+                      <th>科目</th>
+                      <th>平時均分</th>
+                      <th>段考分數</th>
+                      <th>差值</th>
+                    </tr>
+                  </thead>
+                  <tbody id="examSlumpTableBody">
+                    <tr><td colspan="5">無異常名單</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-title" style="color:#15803d;">
+                <span>🌟 段考黑馬 / 顯著進步表揚 (高於該科平時 ≥10 分)</span>
+              </div>
+              <div style="overflow-x:auto; max-height:280px; overflow-y:auto;">
+                <table class="detail-table">
+                  <thead>
+                    <tr>
+                      <th>座號 / 姓名</th>
+                      <th>科目</th>
+                      <th>平時均分</th>
+                      <th>段考分數</th>
+                      <th>進步</th>
+                    </tr>
+                  </thead>
+                  <tbody id="examDarkHorseTableBody">
+                    <tr><td colspan="5">無顯著黑馬</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 學生跨段考 & 平時個人對照總表 -->
+          <div class="card">
+            <div class="card-title" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <span>🎓 全班學生「平時 vs 歷次段考」進退步總覽 (點擊學生可切換看個人診斷圖表)</span>
+              <input type="text" id="examStudentFilterInput" placeholder="🔎 搜尋座號或姓名..." oninput="renderTutorExamStudentTable()" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; width:190px;">
+            </div>
+            <div style="overflow-x:auto; max-height:460px; overflow-y:auto;">
+              <table class="detail-table">
+                <thead id="examStudentTableHead" style="position:sticky; top:0; z-index:2; background:#f1f5f9;"></thead>
+                <tbody id="examStudentTableBody">
+                  <tr><td colspan="5">載入中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div><!-- /#tutorPanel-exam -->
     </div>
 
     <!-- ==============================================================
@@ -2509,6 +2993,14 @@
     let manualCurrentStudents = [];
     let pendingManualPayload = null;
 
+    // 段考選擇＋非選合併暫存狀態
+    let examMergeMeta = [];
+    let mergeCurrentStudents = [];
+    let mergeMcMap = {};     // seat -> number|null
+    let mergeNonMcMap = {};  // seat -> number|null
+    let mergeTotalOverrideMap = {}; // seat -> number (手動覆蓋總分時使用)
+    const mergeActiveSourceType = { mc: 'sheet', nonMc: 'sheet' };
+
     // Tab 1 狀態
     const uploadedImages = []; // [{ file, name, mimeType, base64, status, recognizedData }]
     let currentLightboxZoom = 1.0;
@@ -2521,7 +3013,9 @@
       rawRadar: null,
       rawTrend: null,
       fiveTierRadar: null,
-      fiveTierTrend: null
+      fiveTierTrend: null,
+      examCompareBar: null,
+      examSessionTrend: null
     };
 
     // Tab 3 狀態
@@ -2690,13 +3184,49 @@
     }
 
     /* ==============================================================
-       Tab 1 模式切換與手機打字快速輸入模組
+       段考前綴共用輔助與 Tab 1 模式切換
     ============================================================== */
+    function isExamLabelClient(txt) {
+      return /(段考|期中|期末)/.test(String(txt || ""));
+    }
+
+    function applyExamPrefixToString(rangeStr, enable) {
+      const val = String(rangeStr || "").trim();
+      if (enable) {
+        if (!val || val === "無範圍") return "段考";
+        return isExamLabelClient(val) ? val : `段考 - ${val}`;
+      } else {
+        return val.replace(/^段考\s*[-–:：|｜]?\s*/, "").trim();
+      }
+    }
+
+    function onManualEvalTypeChange() {
+      const evalType = document.getElementById('manualEvalTypeSelect').value || "";
+      const chk = document.getElementById('manualExamPrefixChk');
+      const rangeInput = document.getElementById('manualRangeInput');
+      if (chk && isExamLabelClient(evalType)) {
+        chk.checked = true;
+        if (rangeInput) {
+          rangeInput.value = applyExamPrefixToString(rangeInput.value, true);
+        }
+      }
+    }
+
+    function toggleManualExamPrefix() {
+      const chk = document.getElementById('manualExamPrefixChk');
+      const rangeInput = document.getElementById('manualRangeInput');
+      if (chk && rangeInput) {
+        rangeInput.value = applyExamPrefixToString(rangeInput.value, chk.checked);
+      }
+    }
+
     function switchImportMode(mode) {
       document.getElementById('importModeBtn-ocr').classList.toggle('active', mode === 'ocr');
       document.getElementById('importModeBtn-manual').classList.toggle('active', mode === 'manual');
+      document.getElementById('importModeBtn-merge').classList.toggle('active', mode === 'merge');
       document.getElementById('importPanel-ocr').style.display = (mode === 'ocr') ? 'block' : 'none';
       document.getElementById('importPanel-manual').style.display = (mode === 'manual') ? 'block' : 'none';
+      document.getElementById('importPanel-merge').style.display = (mode === 'merge') ? 'block' : 'none';
 
       if (mode === 'manual') {
         const manualDateEl = document.getElementById('manualDateInput');
@@ -2706,6 +3236,14 @@
         if ((!systemMeta.manualSheets || systemMeta.manualSheets.length === 0) &&
             typeof google !== 'undefined' && google.script && google.script.run) {
           refreshManualSheets();
+        }
+      } else if (mode === 'merge') {
+        const mergeDateEl = document.getElementById('mergeDateInput');
+        if (mergeDateEl && !mergeDateEl.value) {
+          mergeDateEl.value = getLocalTodayStr();
+        }
+        if (examMergeMeta.length === 0 && typeof google !== 'undefined' && google.script && google.script.run) {
+          loadExamMergeMeta(false);
         }
       }
     }
@@ -3048,7 +3586,10 @@
       const isMainSheet = sheetObj ? sheetObj.isMainSheet : (sheetName === "導師成績總表");
       const subject = document.getElementById('manualSubjectInput').value.trim();
       const evalType = document.getElementById('manualEvalTypeSelect').value || "小考";
-      const examRange = document.getElementById('manualRangeInput').value.trim() || "無範圍";
+      const prefixChk = document.getElementById('manualExamPrefixChk');
+      const addExamPrefix = (prefixChk && prefixChk.checked) || isExamLabelClient(evalType);
+      const rawRange = document.getElementById('manualRangeInput').value.trim() || "無範圍";
+      const examRange = addExamPrefix ? applyExamPrefixToString(rawRange, true) : rawRange;
       const examDate = document.getElementById('manualDateInput').value.trim() || getLocalTodayStr();
 
       if (isMainSheet && !subject) {
@@ -3085,6 +3626,7 @@
         evalType: evalType,
         examRange: examRange,
         examDate: examDate,
+        addExamPrefix: addExamPrefix,
         scores: scores
       };
 
@@ -3431,7 +3973,13 @@
             </div>
             <div class="review-field">
               <label>測驗範圍：</label>
-              <input type="text" id="reviewRange-${rIdx}" value="${currentRange}" placeholder="例如：第一章" style="width:160px;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <input type="text" id="reviewRange-${rIdx}" value="${currentRange}" placeholder="例如：第一章" style="width:150px;">
+                <label class="exam-prefix-chip" style="padding:3px 7px; font-size:11px;">
+                  <input type="checkbox" id="reviewExamChk-${rIdx}" ${isExamLabelClient(currentType) || isExamLabelClient(currentRange) ? 'checked' : ''} onchange="toggleReviewExamPrefix(${rIdx})">
+                  <span>段考前綴</span>
+                </label>
+              </div>
             </div>
             <div class="review-field">
               <label>測驗日期：</label>
@@ -3536,6 +4084,14 @@
       document.getElementById('lightboxImg').style.transform = `scale(1)`;
     }
 
+    function toggleReviewExamPrefix(rIdx) {
+      const chk = document.getElementById(`reviewExamChk-${rIdx}`);
+      const inp = document.getElementById(`reviewRange-${rIdx}`);
+      if (chk && inp) {
+        inp.value = applyExamPrefixToString(inp.value, chk.checked);
+      }
+    }
+
     /* 存檔所有確認成績 */
     function saveAllConfirmedScores() {
       const cards = document.querySelectorAll('.review-card');
@@ -3549,7 +4105,10 @@
         const cCode = document.getElementById(`reviewClass-${idx}`).value.trim();
         const subj = document.getElementById(`reviewSubj-${idx}`).value.trim();
         const type = document.getElementById(`reviewType-${idx}`).value.trim();
-        const range = document.getElementById(`reviewRange-${idx}`).value.trim();
+        const examChk = document.getElementById(`reviewExamChk-${idx}`);
+        const isExam = (examChk && examChk.checked) || isExamLabelClient(type);
+        const rawRange = document.getElementById(`reviewRange-${idx}`).value.trim();
+        const range = isExam ? applyExamPrefixToString(rawRange, true) : rawRange;
         const date = document.getElementById(`reviewDate-${idx}`).value.trim();
 
         const table = document.getElementById(`reviewTable-${idx}`);
@@ -3573,6 +4132,7 @@
           className: cCode,
           subject: subj,
           type: type,
+          isExam: isExam,
           examRange: range,
           examDate: date,
           scores: scores,
@@ -3604,8 +4164,508 @@
     }
 
     /* ==============================================================
-       TAB 2: 導師班級主控版功能 (融入 BatchReport 圖表)
+       TAB 1 模式 C：段考「選擇 + 非選」抓取合併計算總分 (TeacherHub 專屬)
     ============================================================== */
+    function loadExamMergeMeta(forceRefresh) {
+      if (!forceRefresh && examMergeMeta.length > 0) {
+        initMergeSelectors();
+        return;
+      }
+      showLoading("🔄 正在載入各班分頁、名冊與現有成績欄位...");
+      google.script.run
+        .withSuccessHandler(list => {
+          hideLoading();
+          examMergeMeta = Array.isArray(list) ? list : [];
+          initMergeSelectors();
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("❌ 載入段考合併分頁資訊失敗：" + err.message);
+        })
+        .getExamMergeSourceOptions();
+    }
+
+    function initMergeSelectors() {
+      const targetSel = document.getElementById('mergeSheetSelect');
+      if (!targetSel) return;
+
+      if (examMergeMeta.length === 0) {
+        targetSel.innerHTML = `<option value="">尚未找到班級分頁</option>`;
+        document.getElementById('mergeConfirmTableBody').innerHTML = `<tr><td colspan="5">尚無可用的班級分頁</td></tr>`;
+        return;
+      }
+
+      const prevTarget = targetSel.value;
+      const sheetOptsHtml = examMergeMeta.map(s => `<option value="${s.sheetName}">${s.displayName}</option>`).join("");
+      targetSel.innerHTML = sheetOptsHtml;
+      if (prevTarget && examMergeMeta.some(s => s.sheetName === prevTarget)) {
+        targetSel.value = prevTarget;
+      }
+
+      ['mc', 'nonMc'].forEach(side => {
+        const srcSel = document.getElementById(`mergeSheetSrc-${side}`);
+        if (srcSel) {
+          const prevSrc = srcSel.value;
+          srcSel.innerHTML = sheetOptsHtml;
+          srcSel.value = (prevSrc && examMergeMeta.some(s => s.sheetName === prevSrc)) ? prevSrc : targetSel.value;
+          onMergeSourceSheetChange(side);
+        }
+      });
+
+      onMergeTargetSheetChange();
+    }
+
+    function onMergeTargetSheetChange() {
+      const sheetName = document.getElementById('mergeSheetSelect').value;
+      const sheetObj = examMergeMeta.find(s => s.sheetName === sheetName);
+      const subjField = document.getElementById('mergeSubjectField');
+      const subjInput = document.getElementById('mergeSubjectInput');
+
+      if (!sheetObj) {
+        mergeCurrentStudents = [];
+        renderMergeConfirmTable();
+        return;
+      }
+
+      if (sheetObj.isMainSheet) {
+        subjField.style.display = 'flex';
+        if (!subjInput.value && systemMeta.subjects && systemMeta.subjects.length > 0) {
+          subjInput.value = systemMeta.subjects[0];
+        }
+      } else {
+        subjField.style.display = 'none';
+        subjInput.value = sheetObj.subject || "";
+      }
+
+      mergeCurrentStudents = sheetObj.students || [];
+      ['mc', 'nonMc'].forEach(side => {
+        const srcSel = document.getElementById(`mergeSheetSrc-${side}`);
+        if (srcSel && sheetName) {
+          srcSel.value = sheetName;
+          onMergeSourceSheetChange(side);
+        }
+      });
+      renderMergeConfirmTable();
+    }
+
+    function switchMergeSourceType(side, type) {
+      mergeActiveSourceType[side] = type;
+      ['sheet', 'paste', 'file', 'ocr'].forEach(mode => {
+        const pill = document.getElementById(`mergePill-${side}-${mode}`);
+        const body = document.getElementById(`mergeSourceBody-${side}-${mode}`);
+        if (pill) pill.classList.toggle('active', mode === type);
+        if (body) body.style.display = (mode === type) ? 'block' : 'none';
+      });
+    }
+
+    function onMergeSourceSheetChange(side) {
+      const srcSel = document.getElementById(`mergeSheetSrc-${side}`);
+      const colSel = document.getElementById(`mergeColSrc-${side}`);
+      if (!srcSel || !colSel) return;
+
+      const sheetObj = examMergeMeta.find(s => s.sheetName === srcSel.value);
+      const cols = sheetObj ? (sheetObj.columns || []) : [];
+      if (cols.length === 0) {
+        colSel.innerHTML = `<option value="">（此分頁尚無已存在的成績欄位）</option>`;
+        return;
+      }
+      // 反轉讓最新欄位排在最上方方便選取
+      const reversed = [...cols].reverse();
+      colSel.innerHTML = reversed.map(c => `<option value="${c.colIdx}">${c.label}</option>`).join("");
+    }
+
+    function applyScoresToMergeSide(side, entries, sourceLabel) {
+      const targetMap = (side === 'mc') ? mergeMcMap : mergeNonMcMap;
+      let loadedCount = 0;
+
+      (entries || []).forEach(item => {
+        const seat = parseInt(item.seat, 10);
+        const val = item.score;
+        if (!isNaN(seat) && val !== "" && val !== null && val !== undefined && !isNaN(Number(val))) {
+          targetMap[seat] = Math.round(Number(val) * 10) / 10;
+          delete mergeTotalOverrideMap[seat];
+          loadedCount++;
+        }
+      });
+
+      const badge = document.getElementById(`mergeStatus-${side}`);
+      if (badge) {
+        badge.innerText = `已載入 ${loadedCount} 筆 (${sourceLabel})`;
+        badge.classList.add('loaded');
+      }
+      renderMergeConfirmTable();
+    }
+
+    function loadMergeScoresFromSheetCol(side) {
+      const sheetName = document.getElementById(`mergeSheetSrc-${side}`).value;
+      const colIdx = document.getElementById(`mergeColSrc-${side}`).value;
+      if (!sheetName || !colIdx) {
+        alert("⚠️ 請先選擇來源分頁與成績欄位！");
+        return;
+      }
+      showLoading("📥 正在抓取指定欄位成績...");
+      google.script.run
+        .withSuccessHandler(res => {
+          hideLoading();
+          applyScoresToMergeSide(side, res.scores || [], res.headerTitle || "試算表欄位");
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("❌ 讀取欄位失敗：" + err.message);
+        })
+        .extractColumnScoresForMerge(sheetName, colIdx);
+    }
+
+    function parseMergePastedScores(side) {
+      const box = document.getElementById(`mergePaste-${side}`);
+      const raw = box ? box.value.trim() : "";
+      if (!raw) {
+        alert("⚠️ 請先貼上座號與分數文字內容！");
+        return;
+      }
+
+      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const parsed = [];
+      let singleColIdx = 0;
+
+      lines.forEach(line => {
+        const parts = line.split(/[\t,\s]+/).map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          const seat = parseInt(parts[0], 10);
+          const scoreVal = Number(parts[parts.length - 1]);
+          if (!isNaN(seat) && seat > 0 && !isNaN(scoreVal)) {
+            parsed.push({ seat: seat, score: scoreVal });
+          }
+        } else if (parts.length === 1 && !isNaN(Number(parts[0])) && mergeCurrentStudents[singleColIdx]) {
+          parsed.push({ seat: mergeCurrentStudents[singleColIdx].seat, score: Number(parts[0]) });
+          singleColIdx++;
+        }
+      });
+
+      if (parsed.length === 0) {
+        alert("⚠️ 未能解析到有效的「座號 分數」或純分數序列，請確認格式！");
+        return;
+      }
+      applyScoresToMergeSide(side, parsed, "剪貼簿貼上");
+    }
+
+    function uploadMergeTableFile(side, event) {
+      const file = event.target && event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      showLoading(`📁 正在解析檔案 [${file.name}]...`);
+      reader.onload = function(ev) {
+        const payload = {
+          name: file.name,
+          mimeType: file.type || "",
+          base64: ev.target.result
+        };
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLoading();
+            renderMergeUploadedColumns(side, res);
+          })
+          .withFailureHandler(err => {
+            hideLoading();
+            alert("❌ 解析檔案失敗：" + err.message);
+          })
+          .parseUploadedTableScoresForMerge(payload);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function renderMergeUploadedColumns(side, parsedRes) {
+      const container = document.getElementById(`mergeFileCols-${side}`);
+      if (!container) return;
+
+      const cols = (parsedRes && parsedRes.columns) ? parsedRes.columns : [];
+      if (cols.length === 0) {
+        container.innerHTML = `<span style="color:#dc2626;">⚠️ 檔案中未偵測到有效數值成績欄位。</span>`;
+        return;
+      }
+
+      window._lastMergeFileCols = window._lastMergeFileCols || {};
+      window._lastMergeFileCols[side] = cols;
+
+      const mcCandIdx = cols.findIndex(c => c.suggestedRole === 'mc');
+      const nonMcCandIdx = cols.findIndex(c => c.suggestedRole === 'nonMc');
+
+      let html = `<div style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">`;
+      if (mcCandIdx !== -1 && nonMcCandIdx !== -1 && mcCandIdx !== nonMcCandIdx) {
+        html += `<button type="button" class="btn btn-success" style="font-size:12px; padding:6px 10px; justify-content:center;" onclick="applyBothColsFromUploadedFile('${side}', ${mcCandIdx}, ${nonMcCandIdx})">✨ 一鍵同時套用 [${cols[mcCandIdx].name}] + [${cols[nonMcCandIdx].name}]</button>`;
+      }
+      html += `<div style="display:flex; flex-wrap:wrap; gap:6px;">`;
+      cols.forEach((c, cIdx) => {
+        html += `<button type="button" class="btn btn-secondary" style="font-size:12px; padding:4px 9px;" onclick="applySingleColFromUploadedFile('${side}', ${cIdx})">套用「${c.name}」(${c.validCount}筆)</button>`;
+      });
+      html += `</div></div>`;
+      container.innerHTML = html;
+
+      // 若剛好只有一欄分數，直接幫老師帶入
+      if (cols.length === 1) {
+        applySingleColFromUploadedFile(side, 0);
+      }
+    }
+
+    function applySingleColFromUploadedFile(side, colArrayIdx) {
+      const cols = (window._lastMergeFileCols && window._lastMergeFileCols[side]) || [];
+      const colObj = cols[colArrayIdx];
+      if (!colObj) return;
+      applyScoresToMergeSide(side, colObj.scores || [], `檔案:${colObj.name}`);
+    }
+
+    function applyBothColsFromUploadedFile(side, mcIdx, nonMcIdx) {
+      const cols = (window._lastMergeFileCols && window._lastMergeFileCols[side]) || [];
+      if (cols[mcIdx]) applyScoresToMergeSide('mc', cols[mcIdx].scores || [], `檔案:${cols[mcIdx].name}`);
+      if (cols[nonMcIdx]) applyScoresToMergeSide('nonMc', cols[nonMcIdx].scores || [], `檔案:${cols[nonMcIdx].name}`);
+    }
+
+    function uploadMergeOcrPhoto(side, event) {
+      const file = event.target && event.target.files && event.target.files[0];
+      if (!file) return;
+
+      showLoading(`📸 正在壓縮並透過 AI 辨識 [${file.name}]...`);
+      compressImageFile(file).then(compressed => {
+        google.script.run
+          .withSuccessHandler(results => {
+            hideLoading();
+            const first = Array.isArray(results) && results[0];
+            if (!first || !first.scores || first.scores.length === 0) {
+              alert("⚠️ 照片未能辨識到有效成績，請嘗試更清晰的照片或改用貼上/欄位讀取。");
+              return;
+            }
+            applyScoresToMergeSide(side, first.scores, "照片AI辨識");
+          })
+          .withFailureHandler(err => {
+            hideLoading();
+            alert("❌ 照片 AI 辨識失敗：" + err.message);
+          })
+          .recognizeUploadedImages([{
+            name: compressed.name,
+            mimeType: compressed.mimeType,
+            base64: compressed.base64
+          }]);
+      }).catch(err => {
+        hideLoading();
+        alert("❌ 讀取照片失敗：" + err.message);
+      });
+    }
+
+    function computeMergeRowTotal(seat) {
+      if (mergeTotalOverrideMap[seat] !== undefined && mergeTotalOverrideMap[seat] !== null && mergeTotalOverrideMap[seat] !== "") {
+        return Number(mergeTotalOverrideMap[seat]);
+      }
+      const mcVal = mergeMcMap[seat];
+      const nonMcVal = mergeNonMcMap[seat];
+      const hasMc = mcVal !== undefined && mcVal !== null && mcVal !== "" && !isNaN(Number(mcVal));
+      const hasNonMc = nonMcVal !== undefined && nonMcVal !== null && nonMcVal !== "" && !isNaN(Number(nonMcVal));
+      if (!hasMc && !hasNonMc) return "";
+      const sum = (hasMc ? Number(mcVal) : 0) + (hasNonMc ? Number(nonMcVal) : 0);
+      return Math.round(sum * 10) / 10;
+    }
+
+    function renderMergeConfirmTable() {
+      const tbody = document.getElementById('mergeConfirmTableBody');
+      if (!tbody) return;
+
+      if (!mergeCurrentStudents || mergeCurrentStudents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">尚無此分頁的學生名單，請先確認分頁設定。</td></tr>`;
+        recalculateMergeStats();
+        return;
+      }
+
+      tbody.innerHTML = mergeCurrentStudents.map((st, idx) => {
+        const mcVal = (mergeMcMap[st.seat] !== undefined && mergeMcMap[st.seat] !== null) ? mergeMcMap[st.seat] : "";
+        const nonMcVal = (mergeNonMcMap[st.seat] !== undefined && mergeNonMcMap[st.seat] !== null) ? mergeNonMcMap[st.seat] : "";
+        const totalVal = computeMergeRowTotal(st.seat);
+
+        return `
+          <tr>
+            <td style="font-weight:bold;">${st.seat}</td>
+            <td style="font-weight:600;">${st.name}</td>
+            <td>
+              <input type="number" step="0.1" id="mergeInput-mc-${idx}" class="merge-score-input" value="${mcVal}" placeholder="-"
+                oninput="onMergeCellEdit(${st.seat}, ${idx}, 'mc', this.value)"
+                onkeydown="handleMergeCellKey(event, ${idx}, 'mc')">
+            </td>
+            <td>
+              <input type="number" step="0.1" id="mergeInput-nonMc-${idx}" class="merge-score-input" value="${nonMcVal}" placeholder="-"
+                oninput="onMergeCellEdit(${st.seat}, ${idx}, 'nonMc', this.value)"
+                onkeydown="handleMergeCellKey(event, ${idx}, 'nonMc')">
+            </td>
+            <td style="background:#f8fafc;">
+              <input type="number" step="0.1" id="mergeInput-total-${idx}" class="merge-score-input" style="border-color:#2563eb; color:#1d4ed8; background:#eff6ff;" value="${totalVal}" placeholder="-"
+                oninput="onMergeCellEdit(${st.seat}, ${idx}, 'total', this.value)"
+                onkeydown="handleMergeCellKey(event, ${idx}, 'total')">
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      recalculateMergeStats();
+    }
+
+    function onMergeCellEdit(seat, rowIdx, field, rawVal) {
+      const trimmed = String(rawVal || "").trim();
+      const numVal = (trimmed !== "" && !isNaN(Number(trimmed))) ? Math.round(Number(trimmed) * 10) / 10 : null;
+
+      if (field === 'total') {
+        if (numVal === null) delete mergeTotalOverrideMap[seat];
+        else mergeTotalOverrideMap[seat] = numVal;
+      } else {
+        delete mergeTotalOverrideMap[seat];
+        if (field === 'mc') {
+          if (numVal === null) delete mergeMcMap[seat];
+          else mergeMcMap[seat] = numVal;
+        } else if (field === 'nonMc') {
+          if (numVal === null) delete mergeNonMcMap[seat];
+          else mergeNonMcMap[seat] = numVal;
+        }
+        const totalInput = document.getElementById(`mergeInput-total-${rowIdx}`);
+        if (totalInput) totalInput.value = computeMergeRowTotal(seat);
+      }
+      recalculateMergeStats();
+    }
+
+    function handleMergeCellKey(e, rowIdx, field) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const nextEl = document.getElementById(`mergeInput-${field}-${rowIdx + 1}`);
+        if (nextEl) {
+          nextEl.focus();
+          nextEl.select();
+        }
+      }
+    }
+
+    function recalculateMergeStats() {
+      const validTotals = [];
+      mergeCurrentStudents.forEach(st => {
+        const tot = computeMergeRowTotal(st.seat);
+        if (tot !== "" && tot !== null && !isNaN(Number(tot))) {
+          validTotals.push(Number(tot));
+        }
+      });
+
+      const stats = computeBriefStatsClient(validTotals);
+      document.getElementById('mergeStatCount').innerText = stats.count;
+      document.getElementById('mergeStatAvg').innerText = stats.count > 0 ? stats.avg : "-";
+      document.getElementById('mergeStatMax').innerText = stats.max;
+      document.getElementById('mergeStatMin').innerText = stats.min;
+      document.getElementById('mergeStatPass').innerText = stats.count > 0 ? `${stats.passRate}%` : "-";
+    }
+
+    function clearMergeScores() {
+      mergeMcMap = {};
+      mergeNonMcMap = {};
+      mergeTotalOverrideMap = {};
+      ['mc', 'nonMc'].forEach(side => {
+        const badge = document.getElementById(`mergeStatus-${side}`);
+        if (badge) {
+          badge.innerText = "尚未載入";
+          badge.classList.remove('loaded');
+        }
+      });
+      renderMergeConfirmTable();
+    }
+
+    function submitMergedExamTotalScores() {
+      const sheetName = document.getElementById('mergeSheetSelect').value;
+      if (!sheetName) {
+        alert("⚠️ 請先選擇目標寫入分頁！");
+        return;
+      }
+
+      const sheetObj = examMergeMeta.find(s => s.sheetName === sheetName);
+      const isMainSheet = sheetObj ? sheetObj.isMainSheet : false;
+      const subject = document.getElementById('mergeSubjectInput').value.trim();
+      const evalType = document.getElementById('mergeEvalTypeSelect').value || "段考";
+      const addExamPrefix = document.getElementById('mergeExamPrefixChk').checked;
+      const syncPairedSheet = document.getElementById('mergeSyncPairedChk').checked;
+      const rawRange = document.getElementById('mergeRangeInput').value.trim() || "段考";
+      const examRange = addExamPrefix ? applyExamPrefixToString(rawRange, true) : rawRange;
+      const examDate = document.getElementById('mergeDateInput').value.trim() || getLocalTodayStr();
+
+      if (isMainSheet && !subject) {
+        alert("⚠️ 寫入導師成績總表時，請填寫科目名稱！");
+        document.getElementById('mergeSubjectInput').focus();
+        return;
+      }
+
+      const rows = [];
+      mergeCurrentStudents.forEach(st => {
+        const tot = computeMergeRowTotal(st.seat);
+        if (tot !== "" && tot !== null && !isNaN(Number(tot))) {
+          rows.push({
+            seat: st.seat,
+            mc: mergeMcMap[st.seat] !== undefined ? mergeMcMap[st.seat] : null,
+            nonMc: mergeNonMcMap[st.seat] !== undefined ? mergeNonMcMap[st.seat] : null,
+            total: Number(tot)
+          });
+        }
+      });
+
+      if (rows.length === 0) {
+        alert("⚠️ 確認表格內尚無任何有效總分，請先載入或輸入「選擇／非選」成績！");
+        return;
+      }
+
+      const avgText = document.getElementById('mergeStatAvg').innerText;
+      if (!confirm(
+        `確定將【${rows.length} 位學生】的「選擇＋非選」段考總分寫入試算表嗎？\n\n` +
+        `• 目標分頁：${sheetName}\n` +
+        `• 範圍標籤：${examRange}\n` +
+        `• 總分班平均：${avgText}`
+      )) {
+        return;
+      }
+
+      showLoading("🚀 正在寫入段考合併總分並更新試算表統計...");
+      google.script.run
+        .withSuccessHandler(res => {
+          hideLoading();
+          if (res && res.success) {
+            const st = res.stats || {};
+            alert(
+              `🎉 段考合併總分寫入成功！\n\n` +
+              `寫入目標：${(res.writtenTargets || [res.sheetName]).join("、")}\n` +
+              `寫入範圍：${res.examRange}\n` +
+              `寫入人數：${res.writtenCount} 筆\n` +
+              `班平均：${st.avg} ｜ 最高：${st.max} ｜ 最低：${st.min} ｜ 及格率：${st.passRate}%`
+            );
+            clearMergeScores();
+            loadExamMergeMeta(true);
+          } else {
+            alert("⚠️ 寫入完成但回傳異常，請檢查試算表內容。");
+          }
+        })
+        .withFailureHandler(err => {
+          hideLoading();
+          alert("❌ 寫入段考總分失敗：" + err.message);
+        })
+        .saveMergedExamTotalScores({
+          sheetName: sheetName,
+          subject: subject,
+          evalType: evalType,
+          examRange: examRange,
+          examDate: examDate,
+          addExamPrefix: addExamPrefix,
+          syncPairedSheet: syncPairedSheet,
+          rows: rows
+        });
+    }
+
+    /* ==============================================================
+       TAB 2: 導師班級主控版功能 (融入 BatchReport 圖表 + 段考專題分析)
+    ============================================================== */
+    function switchTutorSubTab(subTab) {
+      document.getElementById('tutorSubTabBtn-normal').classList.toggle('active', subTab === 'normal');
+      document.getElementById('tutorSubTabBtn-exam').classList.toggle('active', subTab === 'exam');
+      document.getElementById('tutorPanel-normal').style.display = (subTab === 'normal') ? 'block' : 'none';
+      document.getElementById('tutorPanel-exam').style.display = (subTab === 'exam') ? 'block' : 'none';
+    }
+
     function setTutorDateRange(type) {
       const now = new Date();
       const endStr = now.toISOString().split('T')[0];
@@ -3654,12 +4714,225 @@
           // 4. 渲染第一位學生微觀檔案
           currentStudentIndex = 0;
           renderSelectedStudentProfile();
+
+          // 5. 渲染導師端段考專題分析
+          renderTutorExamAnalysis(data.examAnalysis);
         })
         .withFailureHandler(err => {
           hideLoading();
           alert("讀取導師班數據失敗：" + err.message);
         })
         .getTutorDashboardData(start, end);
+    }
+
+    function renderTutorExamAnalysis(examData) {
+      const emptyBanner = document.getElementById('examEmptyBanner');
+      const contentBox = document.getElementById('examContentContainer');
+      if (!emptyBanner || !contentBox) return;
+
+      if (!examData || !examData.hasExamData || !examData.sessions || examData.sessions.length === 0) {
+        emptyBanner.style.display = 'block';
+        contentBox.style.display = 'none';
+        return;
+      }
+
+      emptyBanner.style.display = 'none';
+      contentBox.style.display = 'block';
+
+      const sessions = examData.sessions || [];
+      const latestSession = sessions[sessions.length - 1] || {};
+      const slumpList = (examData.alerts && examData.alerts.slumpList) ? examData.alerts.slumpList : [];
+      const darkHorseList = (examData.alerts && examData.alerts.darkHorseList) ? examData.alerts.darkHorseList : [];
+
+      document.getElementById('examKpiSessions').innerText = sessions.length;
+      document.getElementById('examKpiCols').innerText = examData.examColumnsCount || 0;
+      document.getElementById('examKpiLatestAvg').innerText = (latestSession.classAvg !== null && latestSession.classAvg !== undefined) ? latestSession.classAvg : "-";
+      document.getElementById('examKpiLatestPass').innerText = (latestSession.passRate !== undefined) ? `${latestSession.passRate}%` : "-";
+      document.getElementById('examKpiSlumpCount').innerText = slumpList.length;
+      document.getElementById('examKpiDarkHorseCount').innerText = darkHorseList.length;
+
+      // 圖表 1: 平時 vs 段考班平均並列長條圖
+      const subjComp = examData.subjectComparison || [];
+      const ctxCompare = document.getElementById('examCompareBarChart');
+      if (ctxCompare) {
+        if (tutorCharts.examCompareBar) tutorCharts.examCompareBar.destroy();
+        tutorCharts.examCompareBar = new Chart(ctxCompare, {
+          type: 'bar',
+          data: {
+            labels: subjComp.map(s => s.subject),
+            datasets: [
+              {
+                label: '平時班平均',
+                data: subjComp.map(s => s.normalAvg),
+                backgroundColor: 'rgba(148, 163, 184, 0.78)',
+                borderRadius: 4
+              },
+              {
+                label: '段考班平均',
+                data: subjComp.map(s => s.examAvg),
+                backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { min: 0, max: 100 } },
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+      }
+
+      // 圖表 2: 歷次段考各科／全班走勢圖
+      const ctxSessTrend = document.getElementById('examSessionTrendChart');
+      if (ctxSessTrend) {
+        if (tutorCharts.examSessionTrend) tutorCharts.examSessionTrend.destroy();
+        const palette = ["#2563eb", "#16a34a", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4", "#dc2626"];
+        const allSubjKeys = Array.from(new Set(subjComp.map(s => s.subject)));
+        const datasets = [
+          {
+            label: '全科總平均',
+            data: sessions.map(ss => ss.classAvg),
+            borderColor: '#0f172a',
+            backgroundColor: '#0f172a',
+            borderWidth: 3,
+            tension: 0.2,
+            spanGaps: true
+          },
+          ...allSubjKeys.map((subj, idx) => ({
+            label: subj,
+            data: sessions.map(ss => (ss.subjectAvgs && ss.subjectAvgs[subj] !== undefined) ? ss.subjectAvgs[subj] : null),
+            borderColor: palette[idx % palette.length],
+            backgroundColor: palette[idx % palette.length],
+            tension: 0.2,
+            spanGaps: true
+          }))
+        ];
+
+        tutorCharts.examSessionTrend = new Chart(ctxSessTrend, {
+          type: 'line',
+          data: {
+            labels: sessions.map(ss => ss.title),
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { min: 0, max: 100 } },
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 11, font: { size: 11 } } } }
+          }
+        });
+      }
+
+      // 渲染各科平時 vs 段考對照表
+      const compBody = document.getElementById('examSubjectCompareBody');
+      compBody.innerHTML = subjComp.length > 0 ? subjComp.map(item => {
+        const diffBadge = item.diff === null
+          ? '-'
+          : (item.diff >= 0
+              ? `<span class="badge-delta-up">+${item.diff}</span>`
+              : `<span class="badge-delta-down">${item.diff}</span>`);
+        return `
+          <tr>
+            <td style="font-weight:bold; color:var(--primary);">${item.subject}</td>
+            <td>${item.normalCount} 次</td>
+            <td>${item.normalAvg !== null ? item.normalAvg : '-'}</td>
+            <td>${item.examCount} 次</td>
+            <td style="font-weight:bold;">${item.examAvg !== null ? item.examAvg : '-'}</td>
+            <td>${diffBadge}</td>
+          </tr>
+        `;
+      }).join("") : '<tr><td colspan="6">尚無可對比科目</td></tr>';
+
+      // 渲染失常 & 黑馬表格
+      const renderAlertRows = (list, isSlump) => {
+        if (!list || list.length === 0) {
+          return `<tr><td colspan="5" style="color:#94a3b8;">${isSlump ? '🎉 目前無大考失常預警學生' : '尚無達到 +10 分以上進步幅度學生'}</td></tr>`;
+        }
+        return list.map(item => `
+          <tr>
+            <td style="font-weight:600;">${item.seat}號 ${item.name}</td>
+            <td>${item.subject}</td>
+            <td>${item.normalAvg}</td>
+            <td style="font-weight:bold;">${item.examAvg}</td>
+            <td><span class="${isSlump ? 'badge-delta-down' : 'badge-delta-up'}">${item.delta > 0 ? '+' + item.delta : item.delta}</span></td>
+          </tr>
+        `).join("");
+      };
+      document.getElementById('examSlumpTableBody').innerHTML = renderAlertRows(slumpList, true);
+      document.getElementById('examDarkHorseTableBody').innerHTML = renderAlertRows(darkHorseList, false);
+
+      renderTutorExamStudentTable();
+    }
+
+    function renderTutorExamStudentTable() {
+      const head = document.getElementById('examStudentTableHead');
+      const body = document.getElementById('examStudentTableBody');
+      if (!head || !body || !tutorDashboardData || !tutorDashboardData.examAnalysis) return;
+
+      const examData = tutorDashboardData.examAnalysis;
+      const sessions = examData.sessions || [];
+      const keyword = (document.getElementById('examStudentFilterInput')?.value || "").trim().toLowerCase();
+
+      head.innerHTML = `
+        <tr>
+          <th style="width:60px;">座號</th>
+          <th>姓名</th>
+          <th>平時總平均</th>
+          <th>段考總平均</th>
+          <th>平時→段考差</th>
+          ${sessions.map(ss => `<th>${ss.shortTitle}<br><span style="font-size:11px; font-weight:normal; color:#64748b;">平均 / 班排</span></th>`).join("")}
+        </tr>
+      `;
+
+      const filteredRows = (examData.studentRows || []).filter(r => {
+        if (!keyword) return true;
+        return String(r.seat).includes(keyword) || String(r.name || "").toLowerCase().includes(keyword);
+      });
+
+      if (filteredRows.length === 0) {
+        body.innerHTML = `<tr><td colspan="${5 + sessions.length}">找不到符合條件的學生</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = filteredRows.map(r => {
+        const deltaHtml = (r.overallDelta === null)
+          ? '-'
+          : `<span class="${r.overallDelta >= 0 ? 'badge-delta-up' : 'badge-delta-down'}">${r.overallDelta > 0 ? '+' + r.overallDelta : r.overallDelta}</span>`;
+
+        const sessCols = (r.sessionSummaries || []).map(ss => {
+          if (ss.avg === null) return `<td style="color:#94a3b8;">-</td>`;
+          let rankShiftHtml = "";
+          if (ss.rankDelta !== null && ss.rankDelta !== 0) {
+            rankShiftHtml = ss.rankDelta > 0
+              ? ` <span style="color:#16a34a; font-weight:bold;">(↑${ss.rankDelta})</span>`
+              : ` <span style="color:#dc2626; font-weight:bold;">(↓${Math.abs(ss.rankDelta)})</span>`;
+          }
+          return `<td><strong>${ss.avg}</strong> <span style="color:#64748b; font-size:12px;">(#${ss.rank || '-'})</span>${rankShiftHtml}</td>`;
+        }).join("");
+
+        return `
+          <tr style="cursor:pointer;" onclick="jumpToTutorStudentBySeat(${r.seat})" title="點擊查看該生詳細圖表">
+            <td style="font-weight:bold;">${r.seat}</td>
+            <td style="font-weight:bold; color:var(--primary);">${r.name}</td>
+            <td>${r.normalOverallAvg !== null ? r.normalOverallAvg : '-'}</td>
+            <td style="font-weight:bold;">${r.examOverallAvg !== null ? r.examOverallAvg : '-'}</td>
+            <td>${deltaHtml}</td>
+            ${sessCols}
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function jumpToTutorStudentBySeat(seatNum) {
+      if (!tutorDashboardData || !tutorDashboardData.studentList) return;
+      const idx = tutorDashboardData.studentList.findIndex(s => s.seat === seatNum);
+      if (idx !== -1) {
+        currentStudentIndex = idx;
+        switchTutorSubTab('normal');
+        renderSelectedStudentProfile();
+      }
     }
 
     /* 繪製班級各科學習曲線 (Macro View) */
@@ -4183,14 +5456,14 @@ let currentAnalyticsData = null;
         }
       });
 
-      // Stacked Bar Chart (能力結構)
+      // Stacked Bar Chart (能力結構，由下而上為底標 -> 頂標，讓頂標呈現在最上方)
       if (chartStackedBar) chartStackedBar.destroy();
       const tiers = [
-        { label: "頂標 (P88)", color: "#16a34a", key: "top" },
-        { label: "前標 (P75)", color: "#65a30d", key: "high" },
-        { label: "均標 (P50)", color: "#2563eb", key: "mid" },
+        { label: "底標 (P12及以下)", color: "#dc2626", key: "bottom" },
         { label: "後標 (P25)", color: "#d97706", key: "low" },
-        { label: "底標 (P12及以下)", color: "#dc2626", key: "bottom" }
+        { label: "均標 (P50)", color: "#2563eb", key: "mid" },
+        { label: "前標 (P75)", color: "#65a30d", key: "high" },
+        { label: "頂標 (P88)", color: "#16a34a", key: "top" }
       ];
 
       const barDatasets = tiers.map(t => ({
@@ -4209,7 +5482,7 @@ let currentAnalyticsData = null;
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom' },
+            legend: { position: 'bottom', reverse: true },
             tooltip: {
               callbacks: {
                 label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`

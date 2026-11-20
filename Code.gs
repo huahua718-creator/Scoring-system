@@ -1028,7 +1028,7 @@ function importScoresFromHandwrittenImage(fileId) {
 
   【辨識規則說明】：
   1. 班級與科目：尋找照片頂端手寫字（如「二愛」、「國二仁」、「理化小考」）。
-  2. 評量類型 (type)：辨識是否有「段考」、「小考」、「作業」、「筆記」等字樣，未標示則填「小考」。
+  2. 評量類型 (type)：辨識是否有「段考」、「期中」、「期末」、「小考」、「作業」、「筆記」等字樣，未標示則填「小考」。若為段考或定期考，請在 columns[].range 加上「段考 - 」前綴。
   3. 欄位解析 (columns) 與座號成績：
      - seat 請轉為純整數數字 (如 1, 2, 3...)。
      - 被劃刪除線、空白、缺考者，該座號 score 請填寫 null 或忽略。
@@ -1132,7 +1132,8 @@ function importScoresFromHandwrittenImage(fileId) {
       let totalScoresCount = 0;
 
       for (const colData of columns) {
-        const examRange = colData.range || "無範圍";
+        const rawRange = colData.range || "無範圍";
+        const examRange = isExamRangeLabel_(evalType) ? ensureExamRangePrefix_(rawRange, true, evalType) : rawRange;
         const scoreMap = new Map();
 
         if (colData.scores && Array.isArray(colData.scores)) {
@@ -4603,7 +4604,7 @@ function recognizeUploadedImages(imagesData) {
 
   【辨識規則說明】：
   1. 班級與科目：尋找照片頂端手寫字（如「二愛」、「國二仁」、「理化小考」）。
-  2. 評量類型 (type)：辨識是否有「段考」、「小考」、「作業」、「筆記」等字樣，未標示則填「小考」。
+  2. 評量類型 (type)：辨識是否有「段考」、「期中」、「期末」、「小考」、「作業」、「筆記」等字樣，未標示則填「小考」。若為段考或定期考，請在 columns[].range 加上「段考 - 」前綴。
   3. 欄位解析 (columns) 與座號成績：
      - seat 請轉為純整數數字 (如 1, 2, 3...)。
      - 被劃刪除線、空白、缺考者，該座號 score 請填寫 null 或忽略。
@@ -4777,7 +4778,7 @@ function recognizeUploadedImages(imagesData) {
       singleResult.className = recognizedClass;
       singleResult.subject = subject;
       singleResult.type = evalType;
-      singleResult.examRange = examRange;
+      singleResult.examRange = isExamRangeLabel_(evalType) ? ensureExamRangePrefix_(examRange, true, evalType) : examRange;
       singleResult.scores = scoreItems;
       if (scoreItems.length === 0) {
         singleResult.error = "未辨識出任何有效座號成績，請確認照片內容是否清晰。";
@@ -4821,7 +4822,10 @@ function saveConfirmedOcrScores(confirmedList) {
     const className = normalizeClassName(String(item.className || "").trim());
     const subject = String(item.subject || "").trim();
     const evalType = String(item.type || "小考").trim();
-    const examRange = String(item.examRange || "無範圍").trim();
+    const rawExamRange = String(item.examRange || "無範圍").trim();
+    const examRange = (item.isExam === true || isExamRangeLabel_(evalType))
+      ? ensureExamRangePrefix_(rawExamRange, true, evalType)
+      : rawExamRange;
     const examDate = String(item.examDate || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd")).trim();
     const scores = item.scores || [];
 
@@ -5003,54 +5007,36 @@ function computeBriefScoreStats(scoreNumbers) {
 }
 
 /**
- * 網頁端呼叫：儲存教師手機/手動打字輸入的成績，寫入指定班級分頁最新欄位，
- * 並執行 generateCurrentSubjectStats 更新該分頁底部統計。
- * @param {Object} payload { sheetName, subject, evalType, examRange, examDate, scores: [{seat, score}] }
- * @returns {Object}
+ * 判斷範圍/類型字串是否屬於段考（包含段考、期中、期末）
  */
-function saveManualTypedScores(payload) {
-  if (!payload || !payload.sheetName) {
-    throw new Error("未指定要寫入的班級分頁！");
+function isExamRangeLabel_(text) {
+  return /(段考|期中|期末)/.test(String(text || ""));
+}
+
+/**
+ * 依需求為範圍文字補上「段考」前綴，確保純文字辨識一致
+ */
+function ensureExamRangePrefix_(rangeText, forcePrefix, evalType) {
+  const trimmed = String(rangeText || "").trim();
+  const shouldPrefix = Boolean(forcePrefix) || isExamRangeLabel_(evalType);
+  if (!shouldPrefix) {
+    return trimmed || "無範圍";
   }
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const targetSheet = ss.getSheetByName(String(payload.sheetName).trim());
-  if (!targetSheet) {
-    throw new Error(`找不到分頁 [${payload.sheetName}]！`);
+  if (!trimmed || trimmed === "無範圍") {
+    return "段考";
   }
-
-  const sheetName = targetSheet.getName();
-  const isMainSheet = isHomeroomSheetName(sheetName);
-  const evalType = String(payload.evalType || "小考").trim() || "小考";
-  const subject = String(payload.subject || "").trim();
-  const examRange = String(payload.examRange || "").trim() || "無範圍";
-  const examDate = String(payload.examDate || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd")).trim();
-  const scoresArr = Array.isArray(payload.scores) ? payload.scores : [];
-
-  if (isMainSheet && !subject) {
-    throw new Error("寫入導師成績總表時，請填寫或選擇科目名稱！");
+  if (isExamRangeLabel_(trimmed)) {
+    return trimmed;
   }
+  return `段考 - ${trimmed}`;
+}
 
-  const scoreMap = new Map();
-  const validNumbers = [];
-  scoresArr.forEach(item => {
-    const seat = parseInt(item.seat, 10);
-    const raw = String(item.score !== undefined && item.score !== null ? item.score : "").trim();
-    if (!isNaN(seat) && raw !== "" && !isNaN(Number(raw))) {
-      const val = parseInt(Number(raw), 10);
-      scoreMap.set(seat, val);
-      validNumbers.push(val);
-    }
-  });
-
-  if (scoreMap.size === 0) {
-    throw new Error("請至少輸入一位學生的有效成績再送出！");
-  }
-
-  // 決定最新欄位位置
+/**
+ * 共用寫入工具：將單欄成績與純文字標題寫入指定分頁最新欄位
+ */
+function writeScoresColumnToSheet_(targetSheet, isMainSheet, row1Val, examRange, examDate, scoreMap) {
   const lastCol = targetSheet.getLastColumn();
   const startCol = isMainSheet ? (lastCol < 3 ? 4 : lastCol + 1) : (lastCol < 2 ? 3 : lastCol + 1);
-  const row1Val = isMainSheet ? subject : evalType;
 
   // 核心防呆：先設定純文字格式 (@) 再寫入字串，確保範圍 (如 "3-1") 與日期絕對不轉型成時間物件
   targetSheet.getRange(1, startCol).setNumberFormat("@").setValue(String(row1Val));
@@ -5061,7 +5047,6 @@ function saveManualTypedScores(payload) {
   targetSheet.getRange(2, startCol).setHorizontalAlignment("center");
   targetSheet.getRange(3, startCol).setHorizontalAlignment("center");
 
-  // 依座號寫入學生分數
   const seatColIdx = isMainSheet ? 2 : 1;
   const labelColIdx = isMainSheet ? 3 : 2;
   const studentEndRow = getStudentEndRow(targetSheet, seatColIdx, labelColIdx);
@@ -5081,6 +5066,61 @@ function saveManualTypedScores(payload) {
     targetSheet.getRange(4, startCol, outputScores.length, 1).setValues(outputScores).setHorizontalAlignment("center");
   }
 
+  return {
+    startCol: startCol,
+    colLetter: getColLetter(startCol),
+    writtenCount: writtenCount
+  };
+}
+
+/**
+ * 網頁端呼叫：儲存教師手機/手動打字輸入的成績，寫入指定班級分頁最新欄位，
+ * 並執行 generateCurrentSubjectStats 更新該分頁底部統計。
+ * @param {Object} payload { sheetName, subject, evalType, examRange, examDate, addExamPrefix, scores: [{seat, score}] }
+ * @returns {Object}
+ */
+function saveManualTypedScores(payload) {
+  if (!payload || !payload.sheetName) {
+    throw new Error("未指定要寫入的班級分頁！");
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const targetSheet = ss.getSheetByName(String(payload.sheetName).trim());
+  if (!targetSheet) {
+    throw new Error(`找不到分頁 [${payload.sheetName}]！`);
+  }
+
+  const sheetName = targetSheet.getName();
+  const isMainSheet = isHomeroomSheetName(sheetName);
+  const evalType = String(payload.evalType || "小考").trim() || "小考";
+  const subject = String(payload.subject || "").trim();
+  const examRange = ensureExamRangePrefix_(payload.examRange || "無範圍", Boolean(payload.addExamPrefix), evalType);
+  const examDate = String(payload.examDate || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd")).trim();
+  const scoresArr = Array.isArray(payload.scores) ? payload.scores : [];
+
+  if (isMainSheet && !subject) {
+    throw new Error("寫入導師成績總表時，請填寫或選擇科目名稱！");
+  }
+
+  const scoreMap = new Map();
+  const validNumbers = [];
+  scoresArr.forEach(item => {
+    const seat = parseInt(item.seat, 10);
+    const raw = String(item.score !== undefined && item.score !== null ? item.score : "").trim();
+    if (!isNaN(seat) && raw !== "" && !isNaN(Number(raw))) {
+      const val = Math.round(Number(raw) * 10) / 10;
+      scoreMap.set(seat, val);
+      validNumbers.push(val);
+    }
+  });
+
+  if (scoreMap.size === 0) {
+    throw new Error("請至少輸入一位學生的有效成績再送出！");
+  }
+
+  const row1Val = isMainSheet ? subject : evalType;
+  const writeRes = writeScoresColumnToSheet_(targetSheet, isMainSheet, row1Val, examRange, examDate, scoreMap);
+
   // 觸發 generateCurrentSubjectStats 更新試算表底部統計公式 (靜默模式不跳 ui.alert)
   try {
     generateCurrentSubjectStats(true);
@@ -5091,10 +5131,775 @@ function saveManualTypedScores(payload) {
   return {
     success: true,
     sheetName: sheetName,
-    addedColumn: startCol,
-    colLetter: getColLetter(startCol),
-    writtenCount: writtenCount,
+    addedColumn: writeRes.startCol,
+    colLetter: writeRes.colLetter,
+    writtenCount: writeRes.writtenCount,
+    examRange: examRange,
     stats: computeBriefScoreStats(validNumbers)
+  };
+}
+
+/**
+ * 網頁端呼叫 (TeacherHub 專屬)：取得段考「選擇 + 非選」合併功能所需的分頁、學生名冊與現有欄位清單
+ */
+function getExamMergeSourceOptions() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  const excludedNames = new Set([
+    "成績統計",
+    "System_Settings",
+    "批次個人成績報表區間設定",
+    "科目個人成績報表區間設定"
+  ]);
+
+  const result = [];
+
+  sheets.forEach(sh => {
+    const sName = sh.getName().trim();
+    if (
+      excludedNames.has(sName) ||
+      sName.endsWith("_總成績") ||
+      sName.endsWith("_總成績報表") ||
+      sName.endsWith("_區間成績單")
+    ) {
+      return;
+    }
+
+    const isMainSheet = isHomeroomSheetName(sName);
+    const seatColIdx = isMainSheet ? 2 : 1;
+    const nameColIdx = isMainSheet ? 3 : 2;
+    const studentEndRow = getStudentEndRow(sh, seatColIdx, nameColIdx);
+    const totalCount = studentEndRow - 3;
+
+    if (totalCount <= 0 && !isMainSheet) {
+      return;
+    }
+
+    const students = [];
+    if (totalCount > 0) {
+      const rows = sh.getRange(4, seatColIdx, totalCount, 2).getValues();
+      rows.forEach(r => {
+        const seat = parseInt(r[0], 10);
+        const name = String(r[1] || "").trim();
+        if (!isNaN(seat) && seat > 0) {
+          students.push({ seat: seat, name: name || `座號${seat}` });
+        }
+      });
+      students.sort((a, b) => a.seat - b.seat);
+    }
+
+    let className = "";
+    let subject = "";
+    if (isMainSheet) {
+      className = normalizeClassName(String(sh.getRange("A1").getValue() || "").trim()) || "本班";
+    } else if (sName.length >= 5) {
+      className = sName.substring(0, 3);
+      subject = sName.slice(-2);
+    } else if (sName.length >= 3) {
+      className = sName.substring(0, 3);
+      subject = sName.substring(3);
+    } else {
+      className = sName;
+    }
+
+    const firstDataCol = isMainSheet ? 4 : 3;
+    const lastCol = sh.getLastColumn();
+    const columns = [];
+    if (lastCol >= firstDataCol) {
+      const numCols = lastCol - firstDataCol + 1;
+      const dispHeaders = sh.getRange(1, firstDataCol, 3, numCols).getDisplayValues();
+      const rawDates = sh.getRange(3, firstDataCol, 1, numCols).getValues()[0];
+
+      for (let c = 0; c < numCols; c++) {
+        const row1 = String(dispHeaders[0][c] || "").trim();
+        const row2 = String(dispHeaders[1][c] || "").trim();
+        let dateLabel = String(dispHeaders[2][c] || "").trim();
+        const dt = parseDateHelper(rawDates[c]);
+        if (dt) {
+          dateLabel = Utilities.formatDate(dt, "GMT+8", "MM/dd");
+        }
+        if (!row1 && !row2 && !dateLabel) continue;
+        const absCol = firstDataCol + c;
+        const colLetter = getColLetter(absCol);
+        columns.push({
+          colIdx: absCol,
+          colLetter: colLetter,
+          row1: row1,
+          row2: row2,
+          date: dateLabel,
+          isExam: isExamRangeLabel_(row2) || isExamRangeLabel_(row1),
+          label: `[${colLetter}欄] ${row1 || "未填"} ｜ ${row2 || "無範圍"}${dateLabel ? " (" + dateLabel + ")" : ""}`
+        });
+      }
+    }
+
+    result.push({
+      sheetName: sName,
+      displayName: isMainSheet ? `導師成績總表 (${className})` : sName,
+      isMainSheet: isMainSheet,
+      className: className,
+      subject: subject,
+      students: students,
+      columns: columns
+    });
+  });
+
+  return result;
+}
+
+/**
+ * 網頁端呼叫 (TeacherHub 專屬)：從試算表指定分頁的指定欄位讀取座號與成績，供選擇/非選合併用
+ */
+function extractColumnScoresForMerge(sheetName, colIdx) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(String(sheetName || "").trim());
+  if (!sh) throw new Error(`找不到分頁 [${sheetName}]！`);
+
+  const colNum = parseInt(colIdx, 10);
+  if (isNaN(colNum) || colNum < 1) throw new Error("指定欄位編號無效！");
+
+  const isMainSheet = isHomeroomSheetName(sh.getName());
+  const seatColIdx = isMainSheet ? 2 : 1;
+  const nameColIdx = isMainSheet ? 3 : 2;
+  const studentEndRow = getStudentEndRow(sh, seatColIdx, nameColIdx);
+  const totalCount = studentEndRow - 3;
+
+  const headerDisp = sh.getRange(1, colNum, 2, 1).getDisplayValues();
+  const headerTitle = `${String(headerDisp[0][0] || "").trim()} ${String(headerDisp[1][0] || "").trim()}`.trim();
+
+  const scores = [];
+  if (totalCount > 0) {
+    const metaRows = sh.getRange(4, seatColIdx, totalCount, 2).getValues();
+    const scoreRows = sh.getRange(4, colNum, totalCount, 1).getValues();
+    for (let i = 0; i < totalCount; i++) {
+      const seat = parseInt(metaRows[i][0], 10);
+      const name = String(metaRows[i][1] || "").trim();
+      const rawVal = scoreRows[i][0];
+      if (!isNaN(seat) && seat > 0) {
+        const hasVal = rawVal !== "" && rawVal !== null && rawVal !== undefined && !isNaN(Number(rawVal));
+        scores.push({
+          seat: seat,
+          name: name || `座號${seat}`,
+          score: hasVal ? Math.round(Number(rawVal) * 10) / 10 : null
+        });
+      }
+    }
+  }
+
+  return {
+    sheetName: sh.getName(),
+    colIdx: colNum,
+    headerTitle: headerTitle,
+    scores: scores
+  };
+}
+
+/**
+ * 輔助解析 2D 表格陣列：自動辨識座號欄與候選分數欄位 (如選擇、非選、成績)
+ */
+function extractMergeColumnsFrom2DValues_(rows, fileName) {
+  if (!rows || rows.length < 2) {
+    throw new Error(`檔案 [${fileName}] 內容列數不足，無法解析座號與分數！`);
+  }
+
+  // 尋找標題列 (前 5 列內優先匹配含座號或多個非空欄)
+  let headerRowIdx = 0;
+  for (let r = 0; r < Math.min(5, rows.length); r++) {
+    const joined = rows[r].map(c => String(c || "")).join(" ");
+    if (/(座號|編號|學號|姓名|選擇|非選|成績|分數|總分)/.test(joined)) {
+      headerRowIdx = r;
+      break;
+    }
+  }
+
+  const headerRow = rows[headerRowIdx] || [];
+  const dataRows = rows.slice(headerRowIdx + 1);
+  const colCount = Math.max(...rows.slice(headerRowIdx, Math.min(rows.length, headerRowIdx + 15)).map(r => r.length));
+
+  // 1. 偵測座號欄位
+  let seatColIdx = -1;
+  for (let c = 0; c < colCount; c++) {
+    const h = String(headerRow[c] || "").trim();
+    if (/^(座號|編號|背號|seat|no\.?)$/i.test(h) || h.includes("座號")) {
+      seatColIdx = c;
+      break;
+    }
+  }
+  if (seatColIdx === -1) {
+    // 啟發式判斷：尋找前段為 1~60 整數的欄位
+    for (let c = 0; c < colCount; c++) {
+      let intCount = 0;
+      for (let r = 0; r < Math.min(15, dataRows.length); r++) {
+        const v = String(dataRows[r][c] || "").trim();
+        if (/^\d{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 65) intCount++;
+      }
+      if (intCount >= 3) {
+        seatColIdx = c;
+        break;
+      }
+    }
+  }
+  if (seatColIdx === -1) seatColIdx = 0;
+
+  // 2. 偵測所有有效數值成績欄位
+  const candidateCols = [];
+  for (let c = 0; c < colCount; c++) {
+    if (c === seatColIdx) continue;
+    const h = String(headerRow[c] || "").trim() || `第 ${c + 1} 欄`;
+    // 排除明顯為姓名/班級/學號的欄位
+    if (/^(姓名|名字|班級|學號|身分|備註|排名|名次)$/.test(h)) continue;
+
+    const scores = [];
+    for (let r = 0; r < dataRows.length; r++) {
+      const seatRaw = parseInt(String(dataRows[r][seatColIdx] || "").trim(), 10);
+      const valRaw = String(dataRows[r][c] !== undefined && dataRows[r][c] !== null ? dataRows[r][c] : "").trim();
+      if (!isNaN(seatRaw) && seatRaw > 0 && valRaw !== "" && !isNaN(Number(valRaw))) {
+        const num = Math.round(Number(valRaw) * 10) / 10;
+        if (num >= 0 && num <= 200) {
+          scores.push({ seat: seatRaw, score: num });
+        }
+      }
+    }
+
+    if (scores.length >= 2) {
+      let suggestedRole = "";
+      if (/(選擇|單選|畫卡|卡分|客觀|MC)/i.test(h)) suggestedRole = "mc";
+      else if (/(非選|手寫|申論|計算|問答|作文|主觀|非單)/i.test(h)) suggestedRole = "nonMc";
+      candidateCols.push({
+        colIdx: c,
+        name: h,
+        suggestedRole: suggestedRole,
+        validCount: scores.length,
+        scores: scores
+      });
+    }
+  }
+
+  return {
+    fileName: fileName,
+    seatColHeader: String(headerRow[seatColIdx] || "座號").trim(),
+    columns: candidateCols
+  };
+}
+
+/**
+ * 網頁端呼叫 (TeacherHub 專屬)：解析上傳的 Excel / CSV 檔案並擷取可用於「選擇/非選合併」的分數欄位
+ * @param {Object} fileData { name: string, mimeType: string, base64: string }
+ */
+function parseUploadedTableScoresForMerge(fileData) {
+  if (!fileData || !fileData.base64) {
+    throw new Error("未接收到上傳檔案資料！");
+  }
+
+  const fileName = String(fileData.name || "scores.xlsx").trim();
+  const fileNameLower = fileName.toLowerCase();
+  let rawBase64 = String(fileData.base64 || "");
+  if (rawBase64.indexOf("base64,") !== -1) {
+    rawBase64 = rawBase64.split("base64,")[1];
+  }
+
+  const bytes = Utilities.base64Decode(rawBase64);
+
+  if (fileNameLower.endsWith(".csv") || fileNameLower.endsWith(".txt") || (fileData.mimeType || "").includes("csv")) {
+    const csvText = Utilities.newBlob(bytes).getDataAsString("UTF-8").replace(/^\uFEFF/, "");
+    const rows = Utilities.parseCsv(csvText);
+    return extractMergeColumnsFrom2DValues_(rows, fileName);
+  }
+
+  // Excel (.xlsx / .xls) 透過暫存檔案轉檔讀取後清理
+  const blob = Utilities.newBlob(bytes, fileData.mimeType || MimeType.MICROSOFT_EXCEL, fileName);
+  let tempRawFile = null;
+  let convertedSS = null;
+  try {
+    tempRawFile = DriveApp.createFile(blob);
+    convertedSS = convertExcelToGoogleSheet(tempRawFile.getId());
+    const firstSheet = convertedSS.getSheets()[0];
+    const rows = firstSheet ? firstSheet.getDataRange().getValues() : [];
+    return extractMergeColumnsFrom2DValues_(rows, fileName);
+  } finally {
+    if (convertedSS) {
+      try { DriveApp.getFileById(convertedSS.getId()).setTrashed(true); } catch (e) {}
+    }
+    if (tempRawFile) {
+      try { tempRawFile.setTrashed(true); } catch (e) {}
+    }
+  }
+}
+
+/**
+ * 網頁端呼叫 (TeacherHub 專屬)：確認「選擇 + 非選」合併表格後，將總分寫入試算表並更新統計
+ * @param {Object} payload { sheetName, subject, evalType, examRange, examDate, addExamPrefix, syncPairedSheet, rows: [{seat, mc, nonMc, total}] }
+ */
+function saveMergedExamTotalScores(payload) {
+  if (!payload || !payload.sheetName) {
+    throw new Error("未指定要寫入的目標班級分頁！");
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const targetSheet = ss.getSheetByName(String(payload.sheetName).trim());
+  if (!targetSheet) {
+    throw new Error(`找不到分頁 [${payload.sheetName}]！`);
+  }
+
+  const sheetName = targetSheet.getName();
+  const isMainSheet = isHomeroomSheetName(sheetName);
+  const evalType = String(payload.evalType || "段考").trim() || "段考";
+  let subject = String(payload.subject || "").trim();
+  const examRange = ensureExamRangePrefix_(payload.examRange || "段考", payload.addExamPrefix !== false, evalType);
+  const examDate = String(payload.examDate || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd")).trim();
+  const rows = Array.isArray(payload.rows) ? payload.rows : [];
+
+  let targetClassName = "";
+  if (isMainSheet) {
+    targetClassName = normalizeClassName(String(targetSheet.getRange("A1").getValue() || "").trim());
+    if (!subject) throw new Error("寫入導師成績總表時，請填寫或選擇科目名稱！");
+  } else {
+    targetClassName = sheetName.length >= 3 ? normalizeClassName(sheetName.substring(0, 3)) : "";
+    if (!subject && sheetName.length >= 5) subject = sheetName.slice(-2);
+    else if (!subject && sheetName.length > 3) subject = sheetName.substring(3);
+  }
+
+  const scoreMap = new Map();
+  const validNumbers = [];
+  rows.forEach(item => {
+    const seat = parseInt(item.seat, 10);
+    const totalRaw = item.total;
+    if (!isNaN(seat) && totalRaw !== "" && totalRaw !== null && totalRaw !== undefined && !isNaN(Number(totalRaw))) {
+      const val = Math.round(Number(totalRaw) * 10) / 10;
+      scoreMap.set(seat, val);
+      validNumbers.push(val);
+    }
+  });
+
+  if (scoreMap.size === 0) {
+    throw new Error("請至少填入一位學生的有效成績（選擇或非選）再送出！");
+  }
+
+  const writtenTargets = [];
+  const primaryRow1 = isMainSheet ? subject : evalType;
+  const primaryRes = writeScoresColumnToSheet_(targetSheet, isMainSheet, primaryRow1, examRange, examDate, scoreMap);
+  writtenTargets.push(`${sheetName} (第 ${primaryRes.colLetter} 欄)`);
+
+  // 若勾選同步寫入配對分頁（專任分頁 <-> 導師總表）
+  if (payload.syncPairedSheet !== false && targetClassName && subject) {
+    if (!isMainSheet) {
+      const matchedHomeroom = findMatchingHomeroomSheet(ss, targetClassName, false);
+      if (matchedHomeroom) {
+        const pairedRes = writeScoresColumnToSheet_(matchedHomeroom, true, subject, examRange, examDate, scoreMap);
+        writtenTargets.push(`${matchedHomeroom.getName()} (第 ${pairedRes.colLetter} 欄)`);
+      } else {
+        try {
+          const homeroomCfg = getHomeroomConfig();
+          if (homeroomCfg && homeroomCfg.url && normalizeClassName(homeroomCfg.className) === targetClassName) {
+            const targetSS = SpreadsheetApp.openByUrl(homeroomCfg.url);
+            const remoteTutorSheet = findMatchingHomeroomSheet(targetSS, targetClassName);
+            if (remoteTutorSheet) {
+              addNewSubjectColumnToTutorSheet(subject, examRange, examDate, scoreMap, remoteTutorSheet);
+              writtenTargets.push(`跨檔導師總表 (${targetSS.getName()} - ${remoteTutorSheet.getName()})`);
+            }
+          }
+        } catch (e) {}
+      }
+    } else {
+      const specialSheet = ss.getSheetByName(`${targetClassName}${subject}`);
+      if (specialSheet) {
+        const pairedRes = writeScoresColumnToSheet_(specialSheet, false, evalType, examRange, examDate, scoreMap);
+        writtenTargets.push(`${specialSheet.getName()} (第 ${pairedRes.colLetter} 欄)`);
+      }
+    }
+  }
+
+  try {
+    generateCurrentSubjectStats(true);
+  } catch (statErr) {
+    Logger.log("generateCurrentSubjectStats 執行異常: " + statErr.message);
+  }
+
+  return {
+    success: true,
+    sheetName: sheetName,
+    addedColumn: primaryRes.startCol,
+    colLetter: primaryRes.colLetter,
+    writtenTargets: writtenTargets,
+    writtenCount: primaryRes.writtenCount,
+    examRange: examRange,
+    stats: computeBriefScoreStats(validNumbers)
+  };
+}
+
+/**
+ * 從範圍文字辨識顯式段考次別關鍵字 (如 第一次段考、段考 - 第二次、期中考、期末考)
+ */
+function parseExplicitExamSessionTag_(rangeText) {
+  const s = String(rangeText || "").trim();
+  if (/第\s*[一1]\s*次|[一1]段/.test(s) || /(?:段考|定期)\s*[-–:：|｜\s]*[一1](?:\b|$|[^0-9])/.test(s)) return "第一次段考";
+  if (/第\s*[二2]\s*次|[二2]段/.test(s) || /(?:段考|定期)\s*[-–:：|｜\s]*[二2](?:\b|$|[^0-9])/.test(s)) return "第二次段考";
+  if (/第\s*[三3]\s*次|[三3]段/.test(s) || /(?:段考|定期)\s*[-–:：|｜\s]*[三3](?:\b|$|[^0-9])/.test(s)) return "第三次段考";
+  if (/期中考?/.test(s)) return "期中考";
+  if (/期末考?/.test(s)) return "期末考";
+  return "";
+}
+
+/**
+ * 輔助建立導師端「段考專題分析」資料：
+ * 1. 分離段考欄位 (範圍含段考/期中/期末) 與平時考欄位
+ * 2. 將同次段考各科自動歸類至同一段考次別 (依顯式標記或 12 天內日期群集)
+ * 3. 對比班級與學生個人之「平時 vs 段考」差異，找出失常與黑馬預警，以及跨段考排名進退步
+ */
+function buildTutorExamAnalysis_(subjects, ranges, dates, allScores, studentCount, orderedSubjs, startDateStr, endDateStr, tutorSheet) {
+  const emptyResult = {
+    hasExamData: false,
+    examColumnsCount: 0,
+    normalColumnsCount: 0,
+    sessions: [],
+    subjectComparison: [],
+    alerts: { slumpList: [], darkHorseList: [] },
+    studentRows: []
+  };
+
+  if (!tutorSheet || studentCount <= 0 || !dates || dates.length === 0) {
+    return emptyResult;
+  }
+
+  const startDt = parseDateHelper(startDateStr);
+  const endDt = parseDateHelper(endDateStr);
+  if (startDt) startDt.setHours(0, 0, 0, 0);
+  if (endDt) endDt.setHours(23, 59, 59, 999);
+
+  const studentMeta = tutorSheet.getRange(4, 2, studentCount, 2).getValues();
+  const students = [];
+  for (let s = 0; s < studentCount; s++) {
+    const seat = parseInt(studentMeta[s][0], 10);
+    const name = String(studentMeta[s][1] || "").trim();
+    if (!isNaN(seat) && seat > 0) {
+      students.push({ rowIdx: s, seat: seat, name: name || `座號${seat}` });
+    }
+  }
+  students.sort((a, b) => a.seat - b.seat);
+
+  const normalBySubj = {}; // subj -> [colIdx, ...]
+  const examCols = [];
+
+  for (let c = 0; c < dates.length; c++) {
+    const subj = String(subjects[c] || "").trim();
+    if (!subj) continue;
+
+    const d = parseDateHelper(dates[c]);
+    if (d && ((startDt && d < startDt) || (endDt && d > endDt))) {
+      continue;
+    }
+
+    const rangeText = String(ranges[c] || "").trim() || "無範圍";
+    const isExam = isExamRangeLabel_(rangeText);
+    if (isExam) {
+      const refTime = d ? d.getTime() : 0;
+      examCols.push({
+        colIdx: c,
+        subject: subj,
+        range: rangeText,
+        explicitTag: parseExplicitExamSessionTag_(rangeText),
+        dateLabel: d ? Utilities.formatDate(d, "GMT+8", "MM/dd") : "-",
+        ts: refTime
+      });
+    } else {
+      if (!normalBySubj[subj]) normalBySubj[subj] = [];
+      normalBySubj[subj].push(c);
+    }
+  }
+
+  if (examCols.length === 0) {
+    emptyResult.normalColumnsCount = Object.values(normalBySubj).reduce((acc, arr) => acc + arr.length, 0);
+    return emptyResult;
+  }
+
+  // 依時間與顯式標籤分群成段考次別 (12 天內的未命名段考視為同次段考)
+  examCols.sort((a, b) => (a.ts - b.ts) || (a.colIdx - b.colIdx));
+  const sessionsRaw = [];
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  examCols.forEach(col => {
+    let matched = null;
+    if (col.explicitTag) {
+      matched = sessionsRaw.find(sess =>
+        sess.explicitTag === col.explicitTag &&
+        (col.ts === 0 || sess.lastTs === 0 || Math.abs(col.ts - sess.lastTs) <= 30 * DAY_MS)
+      );
+    } else {
+      for (let i = sessionsRaw.length - 1; i >= 0; i--) {
+        const sess = sessionsRaw[i];
+        if (!sess.explicitTag && (col.ts === 0 || sess.lastTs === 0 || Math.abs(col.ts - sess.lastTs) <= 12 * DAY_MS)) {
+          matched = sess;
+          break;
+        }
+      }
+    }
+
+    if (!matched) {
+      matched = {
+        explicitTag: col.explicitTag,
+        firstTs: col.ts,
+        lastTs: col.ts,
+        cols: []
+      };
+      sessionsRaw.push(matched);
+    }
+    matched.cols.push(col);
+    if (col.ts > 0) {
+      matched.lastTs = Math.max(matched.lastTs || col.ts, col.ts);
+      matched.firstTs = matched.firstTs ? Math.min(matched.firstTs, col.ts) : col.ts;
+    }
+  });
+
+  // 組裝各段考次別統計 (班平均、及格率、各科均分)
+  const sessions = sessionsRaw.map((sess, sIdx) => {
+    const firstDate = sess.cols[0].dateLabel;
+    const baseTitle = sess.explicitTag || `第 ${sIdx + 1} 次段考`;
+    const title = (firstDate && firstDate !== "-") ? `${baseTitle} (${firstDate})` : baseTitle;
+    const subjScoresAgg = {};
+    const allSessionScores = [];
+
+    sess.cols.forEach(col => {
+      for (let s = 0; s < studentCount; s++) {
+        const raw = allScores[s][col.colIdx];
+        const val = Number(raw);
+        if (raw !== "" && raw !== null && !isNaN(val)) {
+          allSessionScores.push(val);
+          if (!subjScoresAgg[col.subject]) subjScoresAgg[col.subject] = [];
+          subjScoresAgg[col.subject].push(val);
+        }
+      }
+    });
+
+    const subjectAvgs = {};
+    Object.keys(subjScoresAgg).forEach(subj => {
+      const arr = subjScoresAgg[subj];
+      subjectAvgs[subj] = Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
+    });
+
+    const classAvg = allSessionScores.length > 0
+      ? Math.round((allSessionScores.reduce((a, b) => a + b, 0) / allSessionScores.length) * 10) / 10
+      : null;
+    const passRate = allSessionScores.length > 0
+      ? Math.round((allSessionScores.filter(v => v >= 60).length / allSessionScores.length) * 1000) / 10
+      : 0;
+
+    return {
+      sessionId: `exam_sess_${sIdx + 1}`,
+      title: title,
+      shortTitle: baseTitle,
+      dateLabel: firstDate,
+      subjectCount: Object.keys(subjectAvgs).length,
+      examCount: sess.cols.length,
+      classAvg: classAvg,
+      passRate: passRate,
+      subjectAvgs: subjectAvgs,
+      _cols: sess.cols
+    };
+  });
+
+  // 各科「平時 vs 段考」全班對比
+  const examBySubj = {};
+  examCols.forEach(col => {
+    if (!examBySubj[col.subject]) examBySubj[col.subject] = [];
+    examBySubj[col.subject].push(col.colIdx);
+  });
+
+  const subjectComparison = orderedSubjs
+    .filter(subj => (examBySubj[subj] && examBySubj[subj].length > 0))
+    .map(subj => {
+      const collectAvg = colIndices => {
+        const vals = [];
+        (colIndices || []).forEach(cIdx => {
+          for (let s = 0; s < studentCount; s++) {
+            const raw = allScores[s][cIdx];
+            const val = Number(raw);
+            if (raw !== "" && raw !== null && !isNaN(val)) vals.push(val);
+          }
+        });
+        return {
+          count: vals.length,
+          avg: vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null
+        };
+      };
+
+      const normRes = collectAvg(normalBySubj[subj]);
+      const examRes = collectAvg(examBySubj[subj]);
+      const diff = (normRes.avg !== null && examRes.avg !== null)
+        ? Math.round((examRes.avg - normRes.avg) * 10) / 10
+        : null;
+
+      return {
+        subject: subj,
+        normalCount: (normalBySubj[subj] || []).length,
+        normalAvg: normRes.avg,
+        examCount: examBySubj[subj].length,
+        examAvg: examRes.avg,
+        diff: diff
+      };
+    });
+
+  // 計算每位學生於各段考次別之均分與班排
+  const sessionRankMaps = sessions.map(sess => {
+    const studentAvgs = students.map(st => {
+      const vals = [];
+      const subjectScores = {};
+      sess._cols.forEach(col => {
+        const raw = allScores[st.rowIdx][col.colIdx];
+        const val = Number(raw);
+        if (raw !== "" && raw !== null && !isNaN(val)) {
+          vals.push(val);
+          if (!subjectScores[col.subject]) subjectScores[col.subject] = [];
+          subjectScores[col.subject].push(val);
+        }
+      });
+      const subjAvgMap = {};
+      Object.keys(subjectScores).forEach(subj => {
+        const arr = subjectScores[subj];
+        subjAvgMap[subj] = Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
+      });
+      const avg = vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
+      return { seat: st.seat, avg: avg, subjectScores: subjAvgMap };
+    });
+
+    const ranked = studentAvgs.filter(x => x.avg !== null).sort((a, b) => b.avg - a.avg);
+    const rankBySeat = {};
+    let currentRank = 1;
+    ranked.forEach((item, idx) => {
+      if (idx > 0 && item.avg < ranked[idx - 1].avg) currentRank = idx + 1;
+      rankBySeat[item.seat] = currentRank;
+    });
+
+    const bySeat = {};
+    studentAvgs.forEach(item => {
+      bySeat[item.seat] = {
+        avg: item.avg,
+        rank: rankBySeat[item.seat] || null,
+        subjectScores: item.subjectScores
+      };
+    });
+    return bySeat;
+  });
+
+  const slumpList = [];
+  const darkHorseList = [];
+
+  const studentRows = students.map(st => {
+    const allNormalVals = [];
+    const allExamVals = [];
+    const subjectComparisons = [];
+
+    orderedSubjs.forEach(subj => {
+      const nCols = normalBySubj[subj] || [];
+      const eCols = examBySubj[subj] || [];
+      if (eCols.length === 0) return;
+
+      const nVals = [];
+      nCols.forEach(cIdx => {
+        const raw = allScores[st.rowIdx][cIdx];
+        const val = Number(raw);
+        if (raw !== "" && raw !== null && !isNaN(val)) {
+          nVals.push(val);
+          allNormalVals.push(val);
+        }
+      });
+
+      const eVals = [];
+      eCols.forEach(cIdx => {
+        const raw = allScores[st.rowIdx][cIdx];
+        const val = Number(raw);
+        if (raw !== "" && raw !== null && !isNaN(val)) {
+          eVals.push(val);
+          allExamVals.push(val);
+        }
+      });
+
+      const nAvg = nVals.length > 0 ? Math.round((nVals.reduce((a, b) => a + b, 0) / nVals.length) * 10) / 10 : null;
+      const eAvg = eVals.length > 0 ? Math.round((eVals.reduce((a, b) => a + b, 0) / eVals.length) * 10) / 10 : null;
+      const delta = (nAvg !== null && eAvg !== null) ? Math.round((eAvg - nAvg) * 10) / 10 : null;
+
+      subjectComparisons.push({
+        subject: subj,
+        normalAvg: nAvg,
+        examAvg: eAvg,
+        delta: delta
+      });
+
+      if (delta !== null && delta <= -12) {
+        slumpList.push({
+          seat: st.seat,
+          name: st.name,
+          subject: subj,
+          normalAvg: nAvg,
+          examAvg: eAvg,
+          delta: delta
+        });
+      } else if (delta !== null && delta >= 10) {
+        darkHorseList.push({
+          seat: st.seat,
+          name: st.name,
+          subject: subj,
+          normalAvg: nAvg,
+          examAvg: eAvg,
+          delta: delta
+        });
+      }
+    });
+
+    const normalOverallAvg = allNormalVals.length > 0
+      ? Math.round((allNormalVals.reduce((a, b) => a + b, 0) / allNormalVals.length) * 10) / 10
+      : null;
+    const examOverallAvg = allExamVals.length > 0
+      ? Math.round((allExamVals.reduce((a, b) => a + b, 0) / allExamVals.length) * 10) / 10
+      : null;
+    const overallDelta = (normalOverallAvg !== null && examOverallAvg !== null)
+      ? Math.round((examOverallAvg - normalOverallAvg) * 10) / 10
+      : null;
+
+    const sessionSummaries = sessions.map((sess, sIdx) => {
+      const cur = sessionRankMaps[sIdx][st.seat] || { avg: null, rank: null, subjectScores: {} };
+      const prev = sIdx > 0 ? sessionRankMaps[sIdx - 1][st.seat] : null;
+      const avgDelta = (cur.avg !== null && prev && prev.avg !== null)
+        ? Math.round((cur.avg - prev.avg) * 10) / 10
+        : null;
+      const rankDelta = (cur.rank !== null && prev && prev.rank !== null)
+        ? (prev.rank - cur.rank) // 正數代表名次進步
+        : null;
+      return {
+        sessionId: sess.sessionId,
+        shortTitle: sess.shortTitle,
+        avg: cur.avg,
+        rank: cur.rank,
+        avgDelta: avgDelta,
+        rankDelta: rankDelta,
+        subjectScores: cur.subjectScores
+      };
+    });
+
+    return {
+      seat: st.seat,
+      name: st.name,
+      normalOverallAvg: normalOverallAvg,
+      examOverallAvg: examOverallAvg,
+      overallDelta: overallDelta,
+      sessionSummaries: sessionSummaries,
+      subjectComparisons: subjectComparisons
+    };
+  });
+
+  slumpList.sort((a, b) => a.delta - b.delta);
+  darkHorseList.sort((a, b) => b.delta - a.delta);
+
+  return {
+    hasExamData: true,
+    examColumnsCount: examCols.length,
+    normalColumnsCount: Object.values(normalBySubj).reduce((acc, arr) => acc + arr.length, 0),
+    sessions: sessions.map(({ _cols, ...rest }) => rest),
+    subjectComparison: subjectComparison,
+    alerts: {
+      slumpList: slumpList.slice(0, 15),
+      darkHorseList: darkHorseList.slice(0, 15)
+    },
+    studentRows: studentRows
   };
 }
 
@@ -5127,6 +5932,15 @@ function getTutorDashboardData(startDateStr, endDateStr) {
   };
 
   const subjectStatsList = [];
+  let examAnalysis = {
+    hasExamData: false,
+    examColumnsCount: 0,
+    normalColumnsCount: 0,
+    sessions: [],
+    subjectComparison: [],
+    alerts: { slumpList: [], darkHorseList: [] },
+    studentRows: []
+  };
 
   if (studentCount > 0 && lastCol >= 4) {
     const subjects = tutorSheet.getRange(1, 4, 1, lastCol - 3).getDisplayValues()[0];
@@ -5268,6 +6082,10 @@ function getTutorDashboardData(startDateStr, endDateStr) {
         }
       });
     });
+
+    examAnalysis = buildTutorExamAnalysis_(
+      subjects, ranges, dates, allScores, studentCount, orderedSubjs, startDateStr, endDateStr, tutorSheet
+    );
   }
 
   // 學生簡要索引列表
@@ -5287,6 +6105,7 @@ function getTutorDashboardData(startDateStr, endDateStr) {
     studentList: studentList,
     classMacroTrend: classMacroTrend,
     subjectStatsList: subjectStatsList,
+    examAnalysis: examAnalysis,
     reports: reports
   };
 }

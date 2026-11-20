@@ -1168,14 +1168,14 @@
         }
       });
 
-      // Stacked Bar Chart (能力結構)
+      // Stacked Bar Chart (能力結構，由下而上為底標 -> 頂標，讓頂標呈現在最上方)
       if (chartStackedBar) chartStackedBar.destroy();
       const tiers = [
-        { label: "頂標 (P88)", color: "#16a34a", key: "top" },
-        { label: "前標 (P75)", color: "#65a30d", key: "high" },
-        { label: "均標 (P50)", color: "#2563eb", key: "mid" },
+        { label: "底標 (P12及以下)", color: "#dc2626", key: "bottom" },
         { label: "後標 (P25)", color: "#d97706", key: "low" },
-        { label: "底標 (P12及以下)", color: "#dc2626", key: "bottom" }
+        { label: "均標 (P50)", color: "#2563eb", key: "mid" },
+        { label: "前標 (P75)", color: "#65a30d", key: "high" },
+        { label: "頂標 (P88)", color: "#16a34a", key: "top" }
       ];
 
       const barDatasets = tiers.map(t => ({
@@ -1194,7 +1194,7 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom' },
+            legend: { position: 'bottom', reverse: true },
             tooltip: {
               callbacks: {
                 label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`
